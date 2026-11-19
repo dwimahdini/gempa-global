@@ -1,0 +1,1213 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<meta name="description" content="Pantau gempa bumi di seluruh dunia termasuk Indonesia dari data terbuka USGS: peta interaktif Leaflet, gempa 24 jam terakhir, magnitudo 4.5+, dan gempa yang dirasakan." />
+<link rel="icon" href="data:," />
+<title>Gempa Global USGS — Pantau Gempa Dunia &amp; Indonesia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+  :root{
+    --red:#FF0000; --red-hover:#CC0000; --link:#065FD4;
+    --bg:#FFFFFF; --surface:#F2F2F2; --surface-2:#F8F8F8;
+    --text:#0F0F0F; --text-2:#606060; --border:#E5E5E5;
+    --success:#2BA640; --warning:#FB8C00;
+    --thumb-bg:#181818; --chip-bg:#F2F2F2;
+    --shadow-1:0 1px 2px rgba(0,0,0,.1);
+    --shadow-2:0 4px 32px rgba(0,0,0,.14);
+    --shadow-3:0 8px 40px rgba(0,0,0,.22);
+    color-scheme:light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0F0F0F; --surface:#272727; --surface-2:#1F1F1F;
+      --text:#F1F1F1; --text-2:#AAAAAA; --border:#3D3D3D;
+      --link:#3EA6FF; --thumb-bg:#000000; --chip-bg:#272727;
+      --shadow-1:0 1px 2px rgba(0,0,0,.5);
+      --shadow-2:0 4px 32px rgba(0,0,0,.5);
+      --shadow-3:0 8px 40px rgba(0,0,0,.6);
+      color-scheme:dark;
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;font-family:'Roboto',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:20px;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer}
+  a{color:var(--link);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .mono{font-family:'Roboto Mono',monospace}
+
+  /* ---------- Header 56px ---------- */
+  header.topbar{
+    position:sticky;top:0;z-index:60;height:56px;background:var(--bg);
+    display:flex;align-items:center;gap:16px;padding:0 16px;
+  }
+  header.topbar.scrolled{box-shadow:var(--shadow-1)}
+  .tb-left{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .icon-btn{
+    width:40px;height:40px;min-width:40px;border:0;border-radius:9999px;background:transparent;
+    color:var(--text-2);display:inline-flex;align-items:center;justify-content:center;padding:0;
+  }
+  .icon-btn:hover{background:var(--surface)}
+  .icon-btn svg{width:22px;height:22px;fill:currentColor}
+  .brand{display:flex;align-items:center;gap:8px;color:var(--text);padding:6px 4px;border-radius:8px}
+  .brand:hover{text-decoration:none;background:var(--surface)}
+  .brand-mark{
+    width:30px;height:30px;border-radius:8px;background:var(--red);color:#fff;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .brand-mark svg{width:19px;height:19px;fill:#fff}
+  .brand-name{font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+  .brand-name span{color:var(--red)}
+  .brand-sub{font-size:10px;color:var(--text-2);font-weight:500;letter-spacing:.04em;text-transform:uppercase;line-height:1}
+  .tb-center{flex:1;display:flex;justify-content:center;min-width:0}
+  .search-wrap{display:flex;width:100%;max-width:560px}
+  .search-wrap input{
+    flex:1;height:44px;min-height:44px;border:1px solid var(--border);border-right:0;
+    border-radius:9999px 0 0 9999px;padding:0 16px;font:inherit;font-size:14px;
+    background:var(--bg);color:var(--text);outline:none;min-width:0;
+  }
+  .search-wrap input:focus{border-color:var(--text)}
+  .search-btn{
+    width:64px;height:44px;min-height:44px;border:1px solid var(--border);background:var(--surface-2);
+    border-radius:0 9999px 9999px 0;color:var(--text-2);display:flex;align-items:center;justify-content:center;padding:0;flex-shrink:0;
+  }
+  .search-btn svg{width:20px;height:20px;fill:currentColor}
+  .tb-right{display:flex;align-items:center;gap:8px;flex-shrink:0}
+  .live-pill{
+    display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:9999px;
+    background:var(--surface);color:var(--text-2);font-size:12px;font-weight:700;letter-spacing:.06em;
+    border:1px solid var(--border);white-space:nowrap;transition:background .2s,color .2s,border-color .2s;
+  }
+  .live-pill.is-live{background:var(--red);color:#fff;border-color:var(--red)}
+  .live-pill.is-snapshot{background:#FFF3E0;color:#7A3E00;border-color:#FFCC80}
+  .live-pill.is-loading{background:var(--surface);color:var(--text-2);border-color:var(--border)}
+  @media (prefers-color-scheme: dark){
+    .live-pill.is-snapshot{background:#3A2A12;color:#FFCC80;border-color:#6D4C1F}
+  }
+  .live-dot{width:8px;height:8px;border-radius:9999px;background:currentColor;flex-shrink:0}
+  .live-pill.is-live .live-dot{background:#fff;animation:pulse 1.6s infinite}
+  .live-pill.is-snapshot .live-dot{background:#FB8C00;animation:none}
+  .live-pill.is-loading .live-dot{background:var(--text-2);animation:pulse 1s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .auto-note{
+    display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text-2);white-space:nowrap;
+  }
+  .auto-note .mono{font-size:12px;color:var(--text)}
+  .auto-bar{
+    display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12px;color:var(--text-2);
+    padding:10px 0 0;
+  }
+  .auto-bar strong{color:var(--text);font-weight:500}
+  .countdown-track{width:72px;height:4px;border-radius:9999px;background:var(--border);overflow:hidden;display:inline-block;vertical-align:middle}
+  .countdown-fill{height:100%;background:var(--red);border-radius:9999px;transition:width 1s linear;width:100%}
+  .refresh-btn{
+    height:36px;min-height:36px;padding:0 16px;border-radius:9999px;border:1px solid var(--border);
+    background:var(--bg);color:var(--text);font-size:14px;font-weight:500;
+    display:inline-flex;align-items:center;gap:8px;
+  }
+  .refresh-btn:hover{background:var(--surface)}
+  .refresh-btn svg{width:17px;height:17px;fill:currentColor}
+  .refresh-btn.spinning svg{animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ---------- Layout ---------- */
+  .shell{display:flex;align-items:flex-start}
+  aside.sidebar{
+    width:240px;flex-shrink:0;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;
+    padding:12px;background:var(--bg);
+  }
+  body.rail aside.sidebar{width:72px;padding:12px 8px}
+  .nav-item{
+    display:flex;align-items:center;gap:20px;width:100%;min-height:40px;padding:0 12px;margin-bottom:2px;
+    border:0;border-radius:8px;background:transparent;color:var(--text);font-size:14px;text-align:left;
+  }
+  .nav-item svg{width:21px;height:21px;fill:currentColor;flex-shrink:0}
+  .nav-item:hover{background:var(--surface)}
+  .nav-item.active{background:var(--surface);font-weight:700}
+  body.rail .nav-item{flex-direction:column;gap:5px;padding:10px 0;font-size:10px;text-align:center;min-height:56px}
+  body.rail .nav-item span.lbl{white-space:normal;line-height:12px}
+  .side-sep{border:0;border-top:1px solid var(--border);margin:12px 0}
+  .side-head{font-size:12px;font-weight:500;letter-spacing:.02em;color:var(--text-2);padding:4px 12px 8px}
+  body.rail .side-head, body.rail .side-note{display:none}
+  .side-note{font-size:12px;line-height:18px;color:var(--text-2);padding:0 12px}
+  .side-note a{font-weight:500}
+  .stat-mini{display:flex;justify-content:space-between;padding:7px 12px;font-size:13px}
+  .stat-mini b{font-family:'Roboto Mono',monospace;font-weight:500}
+  body.rail .stat-mini{display:none}
+
+  main{flex:1;min-width:0;max-width:2200px;padding:0 24px 48px}
+
+  /* ---------- Chips ---------- */
+  .chipbar{
+    position:sticky;top:56px;z-index:50;background:var(--bg);
+    display:flex;gap:8px;overflow-x:auto;padding:12px 0;scrollbar-width:none;
+  }
+  .chipbar::-webkit-scrollbar{display:none}
+  .chip{
+    flex-shrink:0;height:36px;min-height:36px;padding:8px 14px;border:0;border-radius:9999px;
+    background:var(--chip-bg);color:var(--text);font-size:14px;font-weight:500;line-height:20px;
+  }
+  .chip:hover{filter:brightness(.97)}
+  .chip.selected{background:var(--text);color:var(--bg)}
+
+  /* ---------- Map (Leaflet) ---------- */
+  .map-section{padding-top:16px}
+  .map-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+  .map-head h2{font-size:20px;line-height:28px;font-weight:500;margin:0}
+  .map-head p{color:var(--text-2);font-size:12px;margin:2px 0 0}
+  .map-tools{display:flex;flex-wrap:wrap;gap:8px}
+  .map-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:#DFE9EC}
+  #map{height:480px;width:100%;position:relative;z-index:0;font-family:'Roboto',sans-serif}
+  .map-fallback{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;text-align:center;
+    padding:24px;color:#404040;background:#E8EEF1;font-size:14px;line-height:20px;z-index:5;
+  }
+  .map-fallback.show{display:flex}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 18px;align-items:center;font-size:12px;color:var(--text-2);padding:10px 2px 0}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .legend i{width:12px;height:12px;border-radius:9999px;display:inline-block;border:2px solid rgba(0,0,0,.25);flex-shrink:0}
+  /* Popup Leaflet — selalu terang agar terbaca di kedua mode */
+  .leaflet-popup-content-wrapper{border-radius:10px}
+  .leaflet-popup-content{font-family:'Roboto',sans-serif;color:#0F0F0F;font-size:13px;line-height:19px;margin:14px 16px;min-width:230px}
+  .leaflet-popup-content .pop-mag{
+    display:inline-block;background:var(--red);color:#fff;font-weight:700;font-size:13px;
+    padding:2px 9px;border-radius:4px;margin-bottom:6px;letter-spacing:.02em;
+  }
+  .leaflet-popup-content .pop-place{font-weight:700;font-size:14px;line-height:20px;margin:0 0 6px;color:#0F0F0F}
+  .leaflet-popup-content .pop-row{color:#404040;font-size:12.5px}
+  .leaflet-popup-content .pop-row b{color:#0F0F0F;font-weight:500}
+  .leaflet-popup-content .pop-actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .leaflet-popup-content .pop-btn{
+    height:32px;padding:0 12px;border-radius:9999px;border:1px solid #D9D9D9;background:#0F0F0F;color:#fff;
+    font-size:12.5px;font-weight:500;display:inline-flex;align-items:center;
+  }
+  .leaflet-popup-content .pop-btn.ghost{background:#fff;color:#0F0F0F}
+  .leaflet-popup-content a.pop-btn:hover{text-decoration:none;opacity:.88}
+
+  /* ---------- Featured ---------- */
+  .featured{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:24px;padding-top:28px}
+  .feat-info h2{font-size:24px;line-height:32px;font-weight:700;margin:0 0 8px}
+  .feat-kicker{font-size:12px;font-weight:700;letter-spacing:.06em;color:var(--red);text-transform:uppercase;margin:0 0 6px}
+  .feat-meta{color:var(--text-2);font-size:13px;display:flex;flex-wrap:wrap;gap:6px 14px;margin-bottom:16px}
+  .mag-hero{display:flex;align-items:center;gap:16px;margin:4px 0 16px}
+  .mag-big{
+    width:84px;height:84px;border-radius:9999px;background:var(--red);color:#fff;flex-shrink:0;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;
+  }
+  .mag-big b{font-size:30px;font-weight:700}
+  .mag-big small{font-size:8.5px;font-weight:700;letter-spacing:.02em;margin-top:3px;white-space:nowrap}
+  .mag-hero p{margin:0;font-size:14px}
+  .mag-hero p b{display:block;font-size:15px;margin-bottom:2px}
+  .spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:16px}
+  .spec{background:var(--bg);padding:12px 14px}
+  .spec small{display:block;color:var(--text-2);font-size:12px;font-weight:500;letter-spacing:.02em;margin-bottom:2px}
+  .spec strong{font-size:15px;font-weight:500}
+  .spec strong.mono{font-size:13px}
+  .alert-box{border-radius:12px;padding:14px 16px;font-size:14px;margin-bottom:16px;background:var(--surface)}
+  .alert-box b{display:block;margin-bottom:2px}
+  .alert-box.warn{background:#FFF3E0;color:#5D3600}
+  @media (prefers-color-scheme: dark){ .alert-box.warn{background:#3A2A12;color:#FFCC80} }
+  .btn-row{display:flex;flex-wrap:wrap;gap:8px}
+  .btn{
+    height:36px;min-height:36px;padding:0 16px;border-radius:9999px;font-size:14px;font-weight:500;
+    display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);
+  }
+  .btn:hover{background:var(--surface);text-decoration:none}
+  .btn.dark{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .btn.dark:hover{opacity:.88}
+  .btn svg{width:17px;height:17px;fill:currentColor}
+  .recent-panel{background:var(--surface-2);border:1px solid var(--border);border-radius:12px;padding:16px;align-self:start}
+  .recent-panel h3{font-size:15px;font-weight:700;margin:0 0 4px}
+  .recent-panel p{font-size:12px;color:var(--text-2);margin:0 0 8px}
+  .recent-row{
+    display:flex;gap:12px;align-items:center;width:100%;padding:10px 6px;border:0;border-top:1px solid var(--border);
+    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;min-height:52px;border-radius:6px;
+  }
+  .recent-row:hover{background:var(--surface)}
+  .recent-row .list-main b{font-size:13.5px}
+
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:28px 0 4px}
+  .stat-card{background:var(--surface);border-radius:12px;padding:16px}
+  .stat-card b{font-size:24px;font-weight:700;display:block;line-height:28px}
+  .stat-card b em{font-style:normal;color:var(--red)}
+  .stat-card span{font-size:12px;color:var(--text-2);line-height:16px;display:block;margin-top:2px}
+
+  /* ---------- Grid cards ---------- */
+  .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:16px;margin:32px 0 4px}
+  .section-head h2{font-size:20px;line-height:28px;font-weight:500;margin:0}
+  .section-head p{color:var(--text-2);font-size:12px;margin:0;text-align:right}
+  .grid{
+    display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));
+    column-gap:16px;row-gap:40px;padding-top:16px;
+  }
+  .card{cursor:pointer;background:transparent;border:0;padding:0;text-align:left;font:inherit;color:inherit;width:100%}
+  .thumb{
+    position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:var(--thumb-bg);
+    display:flex;align-items:center;justify-content:center;
+  }
+  .thumb .rings{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+  .thumb .ring{position:absolute;border:1.5px solid rgba(255,255,255,.28);border-radius:9999px}
+  .thumb .core{
+    position:relative;z-index:2;width:58px;height:58px;border-radius:9999px;color:#fff;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;
+    box-shadow:0 0 0 6px rgba(255,255,255,.08);
+  }
+  .thumb .core b{font-size:19px}
+  .thumb .core small{font-size:8px;font-weight:700;letter-spacing:.02em;margin-top:2px;white-space:nowrap}
+  .thumb svg.wave{position:absolute;left:0;right:0;bottom:14px;width:100%;height:44px;opacity:.55}
+  .thumb .coords{
+    position:absolute;top:10px;right:10px;font-family:'Roboto Mono',monospace;font-size:11px;color:#eee;
+    background:rgba(0,0,0,.55);padding:3px 8px;border-radius:4px;
+  }
+  .badge-mag{
+    position:absolute;top:10px;left:10px;z-index:3;background:var(--red);color:#fff;
+    font-size:12px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:.03em;
+  }
+  .badge-felt{
+    position:absolute;top:10px;left:10px;z-index:3;background:var(--warning);color:#fff;
+    font-size:12px;font-weight:700;padding:4px 8px;border-radius:4px;letter-spacing:.03em;
+  }
+  .badge-depth{
+    position:absolute;bottom:10px;right:10px;z-index:3;background:rgba(0,0,0,.65);color:#fff;
+    font-family:'Roboto',sans-serif;font-size:12px;font-weight:500;padding:4px 8px;border-radius:4px;
+  }
+  .card-meta{display:flex;gap:12px;padding-top:12px}
+  .avatar{
+    width:36px;height:36px;border-radius:9999px;flex-shrink:0;color:#fff;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  }
+  .card-text{min-width:0}
+  .card-title{
+    font-size:14px;line-height:20px;font-weight:500;margin:0 0 4px;color:var(--text);
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .card-sub{font-size:12px;line-height:16px;color:var(--text-2);margin:0}
+  .card-sub .dot::before{content:"•";margin:0 4px}
+  .card-fly{font-size:12px;color:var(--link);font-weight:500}
+  .empty-state{padding:48px 16px;text-align:center;color:var(--text-2)}
+  .empty-state b{display:block;font-size:16px;color:var(--text);margin-bottom:6px}
+
+  /* ---------- List ---------- */
+  .list-wrap{margin-top:8px;border-top:1px solid var(--border)}
+  .list-row{
+    display:flex;gap:16px;align-items:center;width:100%;padding:12px 8px;border:0;border-bottom:1px solid var(--border);
+    background:transparent;color:var(--text);font:inherit;text-align:left;cursor:pointer;min-height:56px;
+  }
+  .list-row:hover{background:var(--surface)}
+  .list-mag{width:52px;height:52px;border-radius:9999px;color:#fff;flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+  .list-mag b{font-size:16px}.list-mag small{font-size:8px;font-weight:700;letter-spacing:.06em}
+  .list-main{flex:1;min-width:0}
+  .list-main b{font-weight:500;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .list-main span{font-size:12px;color:var(--text-2)}
+  .list-side{font-size:12px;color:var(--text-2);text-align:right;flex-shrink:0}
+  .list-side .mono{display:block;color:var(--text);font-size:12px}
+
+  /* ---------- Modal ---------- */
+  .modal-back{
+    position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;display:none;
+    align-items:flex-end;justify-content:center;padding:0;
+  }
+  .modal-back.open{display:flex}
+  .modal{
+    background:var(--bg);color:var(--text);width:100%;max-width:640px;max-height:92vh;overflow-y:auto;
+    border-radius:16px 16px 0 0;box-shadow:var(--shadow-3);padding:24px;
+  }
+  .modal h3{font-size:20px;line-height:28px;font-weight:700;margin:0 48px 6px 0}
+  .modal-head{position:relative}
+  .toast{
+    position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(80px);z-index:120;
+    background:var(--text);color:var(--bg);padding:12px 20px;border-radius:8px;font-size:14px;font-weight:500;
+    box-shadow:var(--shadow-2);transition:transform .25s ease;max-width:calc(100vw - 32px);text-align:center;
+  }
+  .toast.show{transform:translateX(-50%) translateY(0)}
+
+  footer{border-top:1px solid var(--border);margin-top:48px;padding:24px 0 8px;color:var(--text-2);font-size:12px;line-height:18px}
+  footer .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+  footer h4{font-size:13px;color:var(--text);margin:0 0 8px;font-weight:500}
+  footer ul{list-style:none;margin:0;padding:0}
+  footer li{margin-bottom:6px}
+  footer code{font-family:'Roboto Mono',monospace;font-size:11px;word-break:break-all}
+  .status-line{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:12px;color:var(--text-2);padding-top:12px}
+  .status-dot{width:8px;height:8px;border-radius:9999px;background:var(--success);display:inline-block;margin-right:6px}
+  .status-dot.stale{background:var(--warning)}
+
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:55;display:none}
+  .scrim.show{display:block}
+
+  @media (max-width:1100px){
+    .featured{grid-template-columns:1fr}
+    .stats-row{grid-template-columns:repeat(2,1fr)}
+    footer .cols{grid-template-columns:1fr}
+  }
+  @media (max-width:860px){
+    aside.sidebar{
+      position:fixed;left:0;top:0;height:100dvh;width:240px;z-index:70;display:none;
+      box-shadow:var(--shadow-3);padding-top:16px;
+    }
+    body.drawer-open aside.sidebar{display:block;animation:drawerIn .22s ease}
+    @keyframes drawerIn{from{transform:translateX(-18px);opacity:.5}to{transform:translateX(0);opacity:1}}
+    body.rail aside.sidebar{width:240px;padding:16px 12px}
+    body.rail .nav-item{flex-direction:row;gap:20px;padding:0 12px;font-size:14px;min-height:40px;text-align:left}
+    body.rail .side-head, body.rail .side-note, body.rail .stat-mini{display:block}
+    body.rail .stat-mini{display:flex}
+    main{padding:0 16px 40px}
+    .brand-sub{display:none}
+    .live-pill .live-txt{display:none}
+    .live-pill{padding:0 9px}
+    .auto-note{display:none}
+    .refresh-btn .rb-txt{display:none}
+    .refresh-btn{padding:0 11px}
+    .grid{grid-template-columns:1fr;row-gap:32px}
+    #map{height:340px}
+    .tb-center{display:none}
+    .tb-center.mobile-open{display:flex;position:absolute;left:8px;right:8px;top:56px;background:var(--bg);padding:8px;border-radius:12px;box-shadow:var(--shadow-2);z-index:65}
+    .search-toggle{display:inline-flex !important}
+    .mag-big{width:72px;height:72px}
+    .mag-big b{font-size:26px}
+  }
+  .search-toggle{display:none}
+  @media (prefers-reduced-motion: reduce){
+    .live-dot,.refresh-btn.spinning svg{animation:none}
+    .countdown-fill{transition:none}
+    .live-pill{transition:none}
+    html{scroll-behavior:auto}
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <div class="tb-left">
+    <button class="icon-btn" id="menuBtn" aria-label="Buka atau tutup menu navigasi">
+      <svg viewBox="0 0 24 24"><path d="M3 6h18v2H3V6zm0 5h18v2H3v-2zm0 5h18v2H3v-2z"/></svg>
+    </button>
+    <a class="brand" href="#" id="brandHome" aria-label="Gempa Global USGS — kembali ke semua gempa">
+      <span class="brand-mark"><svg viewBox="0 0 24 24"><path d="M2 12h3l2-7 3 14 3-10 2 3h7v2h-8l-1.6-2.4L9 21 6.4 9.6 5.6 14H2v-2z"/></svg></span>
+      <span>
+        <span class="brand-name">Gempa<span>Global</span></span><br />
+        <span class="brand-sub">USGS · Seluruh Dunia</span>
+      </span>
+    </a>
+  </div>
+
+  <div class="tb-center" id="searchCenter">
+    <form class="search-wrap" id="searchForm" role="search">
+      <input type="search" id="searchInput" placeholder="Cari lokasi gempa… mis. Indonesia, Japan, California, Alaska" aria-label="Cari lokasi gempa" autocomplete="off" />
+      <button class="search-btn" type="submit" aria-label="Cari">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+      </button>
+    </form>
+  </div>
+
+  <div class="tb-right">
+    <button class="icon-btn search-toggle" id="searchToggle" aria-label="Tampilkan kolom pencarian">
+      <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+    </button>
+    <span class="live-pill is-loading" id="livePill" title="Status data: memuat"><span class="live-dot"></span><span class="live-txt" id="livePillText">MEMUAT</span></span>
+    <span class="auto-note" id="autoNote" title="Data diperbarui otomatis tiap 1 menit"><span>Auto</span><span class="mono" id="countdownText">60 dtk</span></span>
+    <button class="refresh-btn" id="refreshBtn" aria-label="Perbarui data dari USGS sekarang">
+      <svg viewBox="0 0 24 24"><path d="M17.65 6.35A8 8 0 1 0 19.73 14h-2.08a6 6 0 1 1-1.41-6.24L13 11h7V4l-2.35 2.35z"/></svg>
+      <span class="rb-txt">Perbarui</span>
+    </button>
+  </div>
+</header>
+
+<div class="scrim" id="scrim"></div>
+
+<div class="shell">
+  <aside class="sidebar" aria-label="Navigasi dataset gempa">
+    <button class="nav-item active" data-view="semua">
+      <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+      <span class="lbl">Semua Gempa</span>
+    </button>
+    <button class="nav-item" data-view="terbaru">
+      <svg viewBox="0 0 24 24"><path d="M2 12h3l2-7 3 14 3-10 2 3h7v2h-8l-1.6-2.4L9 21 6.4 9.6 5.6 14H2v-2z"/></svg>
+      <span class="lbl">Gempa Terbaru</span>
+    </button>
+    <button class="nav-item" data-view="besar45">
+      <svg viewBox="0 0 24 24"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+      <span class="lbl">Magnitudo 4.5+</span>
+    </button>
+    <button class="nav-item" data-view="dirasakan">
+      <svg viewBox="0 0 24 24"><path d="M12 3a7 7 0 0 0-4 12.74V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-1.26A7 7 0 0 0 12 3zM9 20a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1v-1H9v1z"/></svg>
+      <span class="lbl">Dirasakan</span>
+    </button>
+    <button class="nav-item" data-view="indonesia">
+      <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+      <span class="lbl">Indonesia</span>
+    </button>
+    <hr class="side-sep" />
+    <p class="side-head">Ringkasan 24 jam</p>
+    <div class="stat-mini"><span>Gempa terkuat</span><b id="sideStrongest">—</b></div>
+    <div class="stat-mini"><span>Total M 4.5+</span><b id="sideCountBig">—</b></div>
+    <div class="stat-mini"><span>Total dirasakan</span><b id="sideCountFelt">—</b></div>
+    <div class="stat-mini"><span>Total semua</span><b id="sideCountAll">—</b></div>
+    <div class="stat-mini"><span>Di Indonesia</span><b id="sideCountIndo">—</b></div>
+    <hr class="side-sep" />
+    <p class="side-head">Sumber resmi</p>
+    <p class="side-note">
+      Data terbuka dari <a href="https://earthquake.usgs.gov" target="_blank" rel="noopener">USGS — U.S. Geological Survey</a>, mencakup seluruh dunia termasuk Indonesia, gratis tanpa API key.
+      Untuk gempa kecil khusus wilayah Indonesia, <a href="https://www.bmkg.go.id/gempabumi/gempabumi-realtime" target="_blank" rel="noopener">BMKG</a> tetap yang paling lengkap, dan peringatan dini tsunami resmi Indonesia selalu ikuti kanal BMKG / InaTEWS.
+    </p>
+  </aside>
+
+  <main>
+    <nav class="chipbar" id="chipbar" aria-label="Filter gempa">
+      <button class="chip selected" data-filter="semua">Semua</button>
+      <button class="chip" data-filter="besar45">Magnitudo 4.5+</button>
+      <button class="chip" data-filter="besar">Magnitudo 5+</button>
+      <button class="chip" data-filter="dirasakan">Dirasakan warga</button>
+      <button class="chip" data-filter="indonesia">Indonesia</button>
+      <button class="chip" data-filter="dangkal">Dangkal &lt; 70 km</button>
+      <button class="chip" data-filter="menengah">Menengah 70–300 km</button>
+      <button class="chip" data-filter="dalam">Dalam &gt; 300 km</button>
+      <button class="chip" data-filter="hariini">Hari ini (WIB)</button>
+    </nav>
+
+    <div class="auto-bar" id="autoBar" aria-live="polite">
+      <span><strong id="autoStatusLabel">Memuat data…</strong></span>
+      <span>Auto-refresh tiap 1 menit <span class="countdown-track" aria-hidden="true"><span class="countdown-fill" id="countdownFill"></span></span> <span class="mono" id="countdownText2">60 dtk lagi</span></span>
+      <span id="lastUpdatedLabel">Terakhir diperbarui: —</span>
+      <span>Peta &amp; daftar ikut diperbarui dari USGS setiap refresh berhasil.</span>
+    </div>
+
+    <!-- Peta interaktif Leaflet -->
+    <section class="map-section" id="mapSection" aria-label="Peta interaktif gempa dunia">
+      <div class="map-head">
+        <div>
+          <h2>Peta gempa dunia — 24 jam terakhir</h2>
+          <p>Geser &amp; zoom seperti peta biasa. Ketuk titik gempa untuk popup detail, atau ketuk kartu gempa di bawah untuk terbang ke episenternya.</p>
+        </div>
+        <div class="map-tools">
+          <button class="btn" id="mapFitBtn" type="button">Semua titik</button>
+          <button class="btn" id="mapIndoBtn" type="button">Fokus Indonesia</button>
+          <button class="btn" id="mapLatestBtn" type="button">Gempa signifikan terbaru</button>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <div id="map" role="application" aria-label="Peta Leaflet berisi titik-titik gempa 24 jam terakhir"></div>
+        <div class="map-fallback" id="mapFallback"><span>Peta interaktif belum bisa dimuat (pustaka Leaflet / ubin peta Esri &amp; OpenStreetMap tidak terjangkau).<br />Daftar gempa di bawah tetap bisa dipakai — ketuk kartu untuk detail lengkapnya.</span></div>
+      </div>
+      <div class="legend" aria-label="Legenda warna magnitudo">
+        <span><i style="background:#9E9E9E"></i>&lt; M 3,0</span>
+        <span><i style="background:#FB8C00"></i>M 3,0–3,9</span>
+        <span><i style="background:#E65100"></i>M 4,0–4,9</span>
+        <span><i style="background:#FF0000"></i>M 5,0–5,9</span>
+        <span><i style="background:#B00000"></i>M 6,0+</span>
+        <span>Ukuran titik membesar mengikuti magnitudo · Peta: Esri World Street Map, cadangan © kontributor OpenStreetMap</span>
+      </div>
+    </section>
+
+    <!-- Featured: gempa signifikan terbaru -->
+    <section class="featured" id="featuredSection" aria-label="Gempa signifikan terbaru dari USGS"></section>
+
+    <div class="stats-row" id="statsRow"></div>
+
+    <!-- Grid -->
+    <div class="section-head">
+      <h2 id="gridTitle">Semua gempa</h2>
+      <p id="gridCount"></p>
+    </div>
+    <div class="grid" id="grid"></div>
+    <div class="empty-state" id="emptyState" hidden>
+      <b>Tidak ada gempa yang cocok</b>
+      Coba longgarkan filter atau hapus kata pencarian di atas.
+    </div>
+
+    <!-- List view -->
+    <div class="section-head">
+      <h2>Daftar kronologis</h2>
+      <p>Urut dari yang paling baru · ketuk untuk terbang ke peta</p>
+    </div>
+    <div class="list-wrap" id="listWrap"></div>
+
+    <footer>
+      <div class="cols">
+        <div>
+          <h4>Tentang data ini</h4>
+          <p style="margin:0">Seluruh angka di halaman ini berasal dari feed terbuka USGS dan ditampilkan apa adanya — magnitudo, kedalaman, koordinat, lokasi, laporan dirasakan, dan flag tsunami. Snapshot awal diambil <b id="footSnapshot">—</b>. Halaman ini <b>auto-refresh tiap 1 menit</b>: label <b>LIVE</b> berarti data terakhir berhasil diambil langsung dari USGS, label <b>SNAPSHOT</b> berarti yang tampil masih data cadangan karena koneksi ke USGS belum berhasil. Semua waktu ditampilkan dalam WIB (Asia/Jakarta) dari waktu UTC asli USGS. Titik di peta mengikuti filter yang sedang aktif.</p>
+        </div>
+        <div>
+          <h4>Endpoint USGS yang dipakai</h4>
+          <ul>
+            <li>Semua gempa, 24 jam terakhir<br /><code>earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson</code></li>
+            <li>Magnitudo 4.5+, 24 jam terakhir<br /><code>earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson</code></li>
+            <li>Query bebas (FDSN Event Service)<br /><code>earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&amp;…</code></li>
+          </ul>
+        </div>
+        <div>
+          <h4>Tautan resmi</h4>
+          <ul>
+            <li><a href="https://earthquake.usgs.gov/earthquakes/map/" target="_blank" rel="noopener">USGS — Latest Earthquakes Map</a></li>
+            <li><a href="https://earthquake.usgs.gov/earthquakes/feed/" target="_blank" rel="noopener">USGS — Earthquake Feeds &amp; KML</a></li>
+            <li><a href="https://www.bmkg.go.id/gempabumi/gempabumi-realtime" target="_blank" rel="noopener">BMKG — Gempa Bumi Realtime (Indonesia)</a></li>
+            <li><a href="https://inatews.bmkg.go.id" target="_blank" rel="noopener">InaTEWS — Peringatan Dini Tsunami</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="status-line">
+        <span><span class="status-dot" id="statusDot"></span><span id="statusText">Memuat data…</span></span>
+        <span>Sumber: USGS (earthquake.usgs.gov) · Peta: Leaflet + Esri World Street Map (cadangan OpenStreetMap)</span>
+        <span id="statusClock"></span>
+        <span id="statusAuto">Auto-refresh: aktif · tiap 60 detik</span>
+      </div>
+    </footer>
+  </main>
+</div>
+
+<!-- Detail modal -->
+<div class="modal-back" id="modalBack" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <div class="modal-head">
+      <button class="icon-btn" id="modalClose" aria-label="Tutup detail gempa" style="position:absolute;top:-8px;right:-8px">
+        <svg viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+      </button>
+      <h3 id="modalTitle">Detail gempa</h3>
+      <p id="modalSub" style="color:var(--text-2);margin:0 0 16px"></p>
+    </div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* ===== Snapshot USGS — diambil saat halaman ini dibuat (feed all_day + 4.5_day) ===== */
+var SNAPSHOT_FEED = {"generated":1795087783000,"count":164,"features":[{"id":"nc75468277","mag":1.09,"place":"8 km W of Cobb, CA","time":1795087506750,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468277","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":18,"magType":"md","status":"automatic","title":"M 1.1 - 8 km W of Cobb, CA","big45":false,"coords":[-122.8175,38.8355,1.94]},{"id":"us6000ubz1","mag":5,"place":"31 km WSW of Rabaul, Papua New Guinea","time":1795085587767,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubz1","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":385,"magType":"mb","status":"reviewed","title":"M 5.0 - 31 km WSW of Rabaul, Papua New Guinea","big45":true,"coords":[151.8945,-4.2965,194.8]},{"id":"us6000ubz0","mag":4.3,"place":"Fiji region","time":1795084614782,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubz0","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":284,"magType":"mb","status":"reviewed","title":"M 4.3 - Fiji region","big45":false,"coords":[-177.7237,-19.7086,445.05]},{"id":"aka2026wxnzfn","mag":1.3,"place":"7 km WNW of Four Mile Road, Alaska","time":1795084059563,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxnzfn","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"ml","status":"automatic","title":"M 1.3 - 7 km WNW of Four Mile Road, Alaska","big45":false,"coords":[-149.258,64.626,19.7]},{"id":"ci41363703","mag":1.19,"place":"42 km N of Kernville, CA","time":1795083898020,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363703","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":22,"magType":"ml","status":"automatic","title":"M 1.2 - 42 km N of Kernville, CA","big45":false,"coords":[-118.442,36.1352,7.55]},{"id":"nc75468262","mag":1.34,"place":"18 km SW of Toms Place, CA","time":1795081288570,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468262","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":28,"magType":"md","status":"automatic","title":"M 1.3 - 18 km SW of Toms Place, CA","big45":false,"coords":[-118.8315,37.449,1.28]},{"id":"aka2026wxlkyh","mag":2.4,"place":"35 km WSW of Venetie, Alaska","time":1795079576539,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxlkyh","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":89,"magType":"ml","status":"automatic","title":"M 2.4 - 35 km WSW of Venetie, Alaska","big45":false,"coords":[-147.204,66.928,5]},{"id":"us6000ubyt","mag":4.7,"place":"92 km W of San Juan, Peru","time":1795079293359,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubyt","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":340,"magType":"mb","status":"reviewed","title":"M 4.7 - 92 km W of San Juan, Peru","big45":true,"coords":[-76.0248,-15.3841,10]},{"id":"pr2026323000","mag":4.25,"place":"48 km N of Charlotte Amalie, U.S. Virgin Islands","time":1795079194910,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/pr2026323000","tsunami":0,"felt":37,"cdi":3.5,"mmi":null,"alert":null,"sig":291,"magType":"md","status":"reviewed","title":"M 4.3 - 48 km N of Charlotte Amalie, U.S. Virgin Islands","big45":false,"coords":[-64.8918,18.7751,47]},{"id":"aka2026wxlenc","mag":2.2,"place":"62 km NNW of Petersville, Alaska","time":1795079171270,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxlenc","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":74,"magType":"ml","status":"automatic","title":"M 2.2 - 62 km NNW of Petersville, Alaska","big45":false,"coords":[-151.08,63.037,123.8]},{"id":"ci41363695","mag":0.74,"place":"9 km ENE of Moreno Valley, CA","time":1795078889730,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363695","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":8,"magType":"ml","status":"automatic","title":"M 0.7 - 9 km ENE of Moreno Valley, CA","big45":false,"coords":[-117.1488,33.9702,17.3]},{"id":"ci41363687","mag":1.94,"place":"42 km N of Kernville, CA","time":1795077437510,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363687","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":58,"magType":"ml","status":"automatic","title":"M 1.9 - 42 km N of Kernville, CA","big45":false,"coords":[-118.444,36.1303,3.6]},{"id":"nc75468252","mag":1.92,"place":"7 km SE of Lake Pillsbury, CA","time":1795076600860,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468252","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":57,"magType":"md","status":"automatic","title":"M 1.9 - 7 km SE of Lake Pillsbury, CA","big45":false,"coords":[-122.8997,39.3592,0.6]},{"id":"aka2026wxjnqi","mag":2.3,"place":"5 km NE of Eureka Roadhouse, Alaska","time":1795076060172,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxjnqi","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":81,"magType":"ml","status":"automatic","title":"M 2.3 - 5 km NE of Eureka Roadhouse, Alaska","big45":false,"coords":[-147.104,61.979,12.9]},{"id":"ci41363679","mag":1.45,"place":"42 km N of Kernville, CA","time":1795075543810,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363679","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":32,"magType":"ml","status":"automatic","title":"M 1.5 - 42 km N of Kernville, CA","big45":false,"coords":[-118.443,36.1353,7.04]},{"id":"nc75468242","mag":2.2,"place":"16 km SW of Round Valley, CA","time":1795075452880,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468242","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":74,"magType":"md","status":"automatic","title":"M 2.2 - 16 km SW of Round Valley, CA","big45":false,"coords":[-118.7475,37.3337,17.5]},{"id":"nc75468237","mag":1.94,"place":"16 km SW of Round Valley, CA","time":1795075427920,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468237","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":58,"magType":"md","status":"automatic","title":"M 1.9 - 16 km SW of Round Valley, CA","big45":false,"coords":[-118.738,37.3233,10.79]},{"id":"uw714140611","mag":0.360000014,"place":"5 km ESE of Ashford, Washington","time":1795075393400,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140611","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":2,"magType":"md","status":"automatic","title":"M 0.4 - 5 km ESE of Ashford, Washington","big45":false,"coords":[-121.9647,46.74,0.18]},{"id":"nc75468232","mag":2.48,"place":"19 km SW of Toms Place, CA","time":1795074973630,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468232","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":95,"magType":"md","status":"automatic","title":"M 2.5 - 19 km SW of Toms Place, CA","big45":false,"coords":[-118.8417,37.4545,2.61]},{"id":"nc75468227","mag":1.46,"place":"12 km W of Round Valley, CA","time":1795074853070,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468227","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":33,"magType":"md","status":"automatic","title":"M 1.5 - 12 km W of Round Valley, CA","big45":false,"coords":[-118.7348,37.4138,13.47]},{"id":"aka2026wxivpd","mag":2.4,"place":"129 km S of McCarthy, Alaska","time":1795074811640,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxivpd","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":89,"magType":"ml","status":"automatic","title":"M 2.4 - 129 km S of McCarthy, Alaska","big45":false,"coords":[-143.199,60.279,0.9]},{"id":"ci41363671","mag":1.31,"place":"2 km W of San Jacinto, CA","time":1795074749090,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363671","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"ml","status":"automatic","title":"M 1.3 - 2 km W of San Jacinto, CA","big45":false,"coords":[-116.9832,33.784,15.57]},{"id":"nc75468222","mag":0.79,"place":"4 km NW of The Geysers, CA","time":1795074413320,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468222","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"md","status":"automatic","title":"M 0.8 - 4 km NW of The Geysers, CA","big45":false,"coords":[-122.7852,38.8058,6.36]},{"id":"ci41363663","mag":1.45,"place":"14 km N of Warner Springs, CA","time":1795074388990,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363663","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":32,"magType":"ml","status":"automatic","title":"M 1.5 - 14 km N of Warner Springs, CA","big45":false,"coords":[-116.649,33.404,5.6]},{"id":"aka2026wxikdq","mag":1.6,"place":"14 km ENE of Glacier View, Alaska","time":1795074021651,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxikdq","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"ml","status":"automatic","title":"M 1.6 - 14 km ENE of Glacier View, Alaska","big45":false,"coords":[-147.396,61.846,66]},{"id":"ci41363655","mag":0.5,"place":"4 km SW of Anza, CA","time":1795073991650,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363655","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":4,"magType":"ml","status":"automatic","title":"M 0.5 - 4 km SW of Anza, CA","big45":false,"coords":[-116.7088,33.535,6.77]},{"id":"aka2026wxifgq","mag":2.5,"place":"50 km SSE of Denali National Park, Alaska","time":1795073682544,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxifgq","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":96,"magType":"ml","status":"automatic","title":"M 2.5 - 50 km SSE of Denali National Park, Alaska","big45":false,"coords":[-151.459,63.102,1.2]},{"id":"aka2026wxicqk","mag":1.6,"place":"126 km S of McCarthy, Alaska","time":1795073502903,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxicqk","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"ml","status":"automatic","title":"M 1.6 - 126 km S of McCarthy, Alaska","big45":false,"coords":[-143.176,60.303,5.4]},{"id":"ci41363647","mag":0.12,"place":"3 km WSW of Anza, CA","time":1795073127310,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363647","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":0,"magType":"ml","status":"automatic","title":"M 0.1 - 3 km WSW of Anza, CA","big45":false,"coords":[-116.702,33.5407,6.27]},{"id":"ci41363639","mag":1.68,"place":"7 km ENE of Puebla, B.C., MX","time":1795073000630,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363639","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":43,"magType":"ml","status":"automatic","title":"M 1.7 - 7 km ENE of Puebla, B.C., MX","big45":false,"coords":[-115.2825,32.5922,18.72]},{"id":"aka2026wxhtbo","mag":2.1,"place":"51 km E of Pedro Bay, Alaska","time":1795072844279,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxhtbo","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":68,"magType":"ml","status":"automatic","title":"M 2.1 - 51 km E of Pedro Bay, Alaska","big45":false,"coords":[-153.193,59.803,123.4]},{"id":"hv75072552","mag":1.72,"place":"7 km SSW of P\u0101hala, Hawaii","time":1795072329410,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072552","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":46,"magType":"md","status":"automatic","title":"M 1.7 - 7 km SSW of P\u0101hala, Hawaii","big45":false,"coords":[-155.496,19.1417,27.97]},{"id":"aka2026wxhghi","mag":2.5,"place":"70 km S of Ugashik, Alaska","time":1795071959188,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxhghi","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":96,"magType":"ml","status":"automatic","title":"M 2.5 - 70 km S of Ugashik, Alaska","big45":false,"coords":[-157.209,56.889,5]},{"id":"ci41363631","mag":1.99,"place":"42 km N of Kernville, CA","time":1795071784740,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363631","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":61,"magType":"ml","status":"automatic","title":"M 2.0 - 42 km N of Kernville, CA","big45":false,"coords":[-118.4417,36.1322,6.76]},{"id":"ci41363623","mag":1.17,"place":"42 km WSW of Olancha, CA","time":1795071760370,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363623","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":21,"magType":"ml","status":"automatic","title":"M 1.2 - 42 km WSW of Olancha, CA","big45":false,"coords":[-118.4405,36.1365,7.12]},{"id":"ci41363615","mag":1.26,"place":"42 km N of Kernville, CA","time":1795071083010,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363615","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":24,"magType":"ml","status":"automatic","title":"M 1.3 - 42 km N of Kernville, CA","big45":false,"coords":[-118.4433,36.1315,6.02]},{"id":"aka2026wxgryr","mag":3.7,"place":"67 km S of Ugashik, Alaska","time":1795070964699,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxgryr","tsunami":0,"felt":null,"cdi":null,"mmi":4.327,"alert":null,"sig":211,"magType":"ml","status":"reviewed","title":"M 3.7 - 67 km S of Ugashik, Alaska","big45":false,"coords":[-157.214,56.914,0]},{"id":"ci41363607","mag":1.63,"place":"42 km N of Kernville, CA","time":1795070564420,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363607","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":41,"magType":"ml","status":"automatic","title":"M 1.6 - 42 km N of Kernville, CA","big45":false,"coords":[-118.4433,36.1348,6.44]},{"id":"ci41363599","mag":3.44,"place":"42 km N of Kernville, CA","time":1795070411180,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363599","tsunami":0,"felt":6,"cdi":2.2,"mmi":null,"alert":null,"sig":183,"magType":"ml","status":"automatic","title":"M 3.4 - 42 km N of Kernville, CA","big45":false,"coords":[-118.4387,36.1338,1.96]},{"id":"ci41363591","mag":1.36,"place":"15 km NNE of Thousand Palms, CA","time":1795070081040,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363591","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":28,"magType":"ml","status":"automatic","title":"M 1.4 - 15 km NNE of Thousand Palms, CA","big45":false,"coords":[-116.316,33.9403,5.55]},{"id":"ci41363583","mag":2.81,"place":"6 km SSW of Primo Tapia, B.C., MX","time":1795068166960,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363583","tsunami":0,"felt":1,"cdi":2,"mmi":null,"alert":null,"sig":122,"magType":"ml","status":"automatic","title":"M 2.8 - 6 km SSW of Primo Tapia, B.C., MX","big45":false,"coords":[-116.9348,32.1682,11.9]},{"id":"us6000uby4","mag":4.8,"place":"23 km SSE of Guayaquil, Ecuador","time":1795067366623,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000uby4","tsunami":0,"felt":13,"cdi":4.3,"mmi":null,"alert":null,"sig":360,"magType":"mww","status":"reviewed","title":"M 4.8 - 23 km SSE of Guayaquil, Ecuador","big45":true,"coords":[-79.8204,-2.4019,69.49]},{"id":"aka2026wxeitm","mag":1.9,"place":"33 km WNW of Salamatof, Alaska","time":1795066726629,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxeitm","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":56,"magType":"ml","status":"automatic","title":"M 1.9 - 33 km WNW of Salamatof, Alaska","big45":false,"coords":[-151.905,60.709,101.7]},{"id":"nc75468187","mag":1.77,"place":"7 km NE of Willits, CA","time":1795066670550,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468187","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":48,"magType":"md","status":"automatic","title":"M 1.8 - 7 km NE of Willits, CA","big45":false,"coords":[-123.2993,39.4543,6.53]},{"id":"nc75468182","mag":1.27,"place":"11 km WNW of Cobb, CA","time":1795066322900,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468182","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":25,"magType":"md","status":"automatic","title":"M 1.3 - 11 km WNW of Cobb, CA","big45":false,"coords":[-122.8467,38.8483,1.51]},{"id":"nc75468177","mag":0.66,"place":"10 km NW of The Geysers, CA","time":1795064468800,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468177","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":7,"magType":"md","status":"automatic","title":"M 0.7 - 10 km NW of The Geysers, CA","big45":false,"coords":[-122.8365,38.8375,1.39]},{"id":"aka2026wxczjh","mag":1.6,"place":"52 km WNW of Aleneva, Alaska","time":1795064278518,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxczjh","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"ml","status":"automatic","title":"M 1.6 - 52 km WNW of Aleneva, Alaska","big45":false,"coords":[-153.706,58.274,68]},{"id":"aka2026wxcyrc","mag":1.4,"place":"13 km WNW of Four Mile Road, Alaska","time":1795064229455,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxcyrc","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":30,"magType":"ml","status":"automatic","title":"M 1.4 - 13 km WNW of Four Mile Road, Alaska","big45":false,"coords":[-149.395,64.644,18]},{"id":"hv75072457","mag":1.7,"place":"12 km S of Volcano, Hawaii","time":1795062448360,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072457","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":44,"magType":"md","status":"automatic","title":"M 1.7 - 12 km S of Volcano, Hawaii","big45":false,"coords":[-155.213,19.3295,-0.95]},{"id":"aka2026wxbuhs","mag":3,"place":"25 km S of Port Graham, Alaska","time":1795062130307,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxbuhs","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":138,"magType":"ml","status":"automatic","title":"M 3.0 - 25 km S of Port Graham, Alaska","big45":false,"coords":[-151.806,59.122,50.3]},{"id":"nc75468157","mag":1.4,"place":"9 km NE of Alum Rock, CA","time":1795061295560,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468157","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":30,"magType":"md","status":"automatic","title":"M 1.4 - 9 km NE of Alum Rock, CA","big45":false,"coords":[-121.7692,37.4333,10.34]},{"id":"nc75468152","mag":0.31,"place":"5 km NW of The Geysers, CA","time":1795060953640,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468152","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":1,"magType":"md","status":"automatic","title":"M 0.3 - 5 km NW of The Geysers, CA","big45":false,"coords":[-122.7985,38.8047,12.42]},{"id":"aka2026wxbccr","mag":1.6,"place":"85 km NNW of Karluk, Alaska","time":1795060872156,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxbccr","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"ml","status":"automatic","title":"M 1.6 - 85 km NNW of Karluk, Alaska","big45":false,"coords":[-154.985,58.282,12.6]},{"id":"aka2026wxakhs","mag":2.3,"place":"53 km ESE of Port Alsworth, Alaska","time":1795059638091,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wxakhs","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":81,"magType":"ml","status":"automatic","title":"M 2.3 - 53 km ESE of Port Alsworth, Alaska","big45":false,"coords":[-153.371,60.108,163.5]},{"id":"nc75468147","mag":1.3,"place":"6 km W of Cobb, CA","time":1795059299910,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468147","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"md","status":"automatic","title":"M 1.3 - 6 km W of Cobb, CA","big45":false,"coords":[-122.7947,38.8262,1.81]},{"id":"aka2026wwzkth","mag":2.1,"place":"33 km WNW of Beluga, Alaska","time":1795057867697,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwzkth","tsunami":0,"felt":1,"cdi":1,"mmi":null,"alert":null,"sig":68,"magType":"ml","status":"automatic","title":"M 2.1 - 33 km WNW of Beluga, Alaska","big45":false,"coords":[-151.649,61.263,84.6]},{"id":"nc75468142","mag":0.88,"place":"9 km WNW of Cobb, CA","time":1795057718090,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468142","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":12,"magType":"md","status":"automatic","title":"M 0.9 - 9 km WNW of Cobb, CA","big45":false,"coords":[-122.8288,38.8433,1.29]},{"id":"aka2026wwzdlf","mag":2,"place":"39 km ENE of Ouzinkie, Alaska","time":1795057363679,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwzdlf","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":62,"magType":"ml","status":"automatic","title":"M 2.0 - 39 km ENE of Ouzinkie, Alaska","big45":false,"coords":[-151.882,58.058,31]},{"id":"ci41363559","mag":1.19,"place":"16 km SE of Julian, CA","time":1795056561240,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363559","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":22,"magType":"ml","status":"automatic","title":"M 1.2 - 16 km SE of Julian, CA","big45":false,"coords":[-116.4922,32.974,9.22]},{"id":"ci41363543","mag":0.55,"place":"4 km WSW of Anza, CA","time":1795056336550,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363543","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":5,"magType":"ml","status":"automatic","title":"M 0.6 - 4 km WSW of Anza, CA","big45":false,"coords":[-116.7115,33.5348,5.77]},{"id":"ci41363551","mag":1.46,"place":"21 km N of Searles Valley, CA","time":1795056334670,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363551","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":33,"magType":"ml","status":"automatic","title":"M 1.5 - 21 km N of Searles Valley, CA","big45":false,"coords":[-117.394,35.9575,2.55]},{"id":"hv75072382","mag":2.08,"place":"1 km WSW of P\u0101hala, Hawaii","time":1795055357390,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072382","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":67,"magType":"md","status":"automatic","title":"M 2.1 - 1 km WSW of P\u0101hala, Hawaii","big45":false,"coords":[-155.4902,19.1965,28.92]},{"id":"aka2026wwyafb","mag":1.8,"place":"120 km S of McCarthy, Alaska","time":1795055340887,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwyafb","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":50,"magType":"ml","status":"automatic","title":"M 1.8 - 120 km S of McCarthy, Alaska","big45":false,"coords":[-143.35,60.373,3.5]},{"id":"aka2026wwxyhv","mag":1.5,"place":"32 km NE of Manley Hot Springs, Alaska","time":1795055209870,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwxyhv","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":35,"magType":"ml","status":"automatic","title":"M 1.5 - 32 km NE of Manley Hot Springs, Alaska","big45":false,"coords":[-150.061,65.168,18]},{"id":"aka2026wwxmui","mag":1.8,"place":"13 km WNW of Four Mile Road, Alaska","time":1795054412281,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwxmui","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":50,"magType":"ml","status":"automatic","title":"M 1.8 - 13 km WNW of Four Mile Road, Alaska","big45":false,"coords":[-149.396,64.631,5]},{"id":"us6000ubxg","mag":4.9,"place":"36 km NNE of Kilimatinde, Tanzania","time":1795054283115,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubxg","tsunami":0,"felt":1,"cdi":2,"mmi":null,"alert":null,"sig":370,"magType":"mb","status":"reviewed","title":"M 4.9 - 36 km NNE of Kilimatinde, Tanzania","big45":true,"coords":[35.0812,-5.5431,10]},{"id":"ci41363535","mag":0.57,"place":"9 km WNW of Anza, CA","time":1795054137010,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363535","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":5,"magType":"ml","status":"automatic","title":"M 0.6 - 9 km WNW of Anza, CA","big45":false,"coords":[-116.7595,33.5862,12.04]},{"id":"nc75468122","mag":0.33,"place":"7 km WNW of Cobb, CA","time":1795053613160,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468122","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":2,"magType":"md","status":"automatic","title":"M 0.3 - 7 km WNW of Cobb, CA","big45":false,"coords":[-122.7982,38.8373,2.38]},{"id":"ci41363527","mag":0.79,"place":"18 km ENE of Borrego Springs, CA","time":1795052906860,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363527","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"ml","status":"automatic","title":"M 0.8 - 18 km ENE of Borrego Springs, CA","big45":false,"coords":[-116.1897,33.308,11.59]},{"id":"nc75468112","mag":0.8,"place":"9 km WNW of Cobb, CA","time":1795052789610,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468112","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"md","status":"automatic","title":"M 0.8 - 9 km WNW of Cobb, CA","big45":false,"coords":[-122.8262,38.843,1.38]},{"id":"us6000ubxb","mag":5.2,"place":"130 km W of Teluk Dalam, Indonesia","time":1795052088394,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubxb","tsunami":0,"felt":1,"cdi":2,"mmi":null,"alert":null,"sig":416,"magType":"mww","status":"reviewed","title":"M 5.2 - 130 km W of Teluk Dalam, Indonesia","big45":true,"coords":[96.6318,0.5027,10]},{"id":"us6000ubxa","mag":4.8,"place":"40 km NNE of Kilimatinde, Tanzania","time":1795051773145,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubxa","tsunami":0,"felt":2,"cdi":2.7,"mmi":null,"alert":null,"sig":355,"magType":"mww","status":"reviewed","title":"M 4.8 - 40 km NNE of Kilimatinde, Tanzania","big45":true,"coords":[35.0903,-5.5109,10]},{"id":"aka2026wwvimq","mag":2.4,"place":"31 km S of Denali National Park, Alaska","time":1795050550307,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwvimq","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":89,"magType":"ml","status":"automatic","title":"M 2.4 - 31 km S of Denali National Park, Alaska","big45":false,"coords":[-151.645,63.263,5]},{"id":"aka2026wwvgen","mag":2,"place":"22 km E of Ninilchik, Alaska","time":1795050352042,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwvgen","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":62,"magType":"ml","status":"reviewed","title":"M 2.0 - 22 km E of Ninilchik, Alaska","big45":false,"coords":[-151.265,60.021,84.9]},{"id":"ci41363519","mag":1.01,"place":"15 km NE of Little Lake, CA","time":1795050086570,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363519","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":16,"magType":"ml","status":"automatic","title":"M 1.0 - 15 km NE of Little Lake, CA","big45":false,"coords":[-117.7812,36.0273,1.69]},{"id":"nc75468107","mag":0.98,"place":"3 km W of Cobb, CA","time":1795048961970,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468107","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":15,"magType":"md","status":"automatic","title":"M 1.0 - 3 km W of Cobb, CA","big45":false,"coords":[-122.7633,38.8212,2.22]},{"id":"nc75468102","mag":1.6,"place":"3 km W of Cobb, CA","time":1795048867320,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468102","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"md","status":"automatic","title":"M 1.6 - 3 km W of Cobb, CA","big45":false,"coords":[-122.7627,38.8223,1.99]},{"id":"nn00927157","mag":1.52,"place":"53 km NW of Rachel, Nevada","time":1795048810606,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nn00927157","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":36,"magType":"ml","status":"automatic","title":"M 1.5 - 53 km NW of Rachel, Nevada","big45":false,"coords":[-116.166,37.9923,4.04]},{"id":"nn00927155","mag":1.53,"place":"17 km SE of Silver Springs, Nevada","time":1795047211652,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nn00927155","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":36,"magType":"ml","status":"reviewed","title":"M 1.5 - 17 km SE of Silver Springs, Nevada","big45":false,"coords":[-119.0884,39.3044,7.88]},{"id":"nc75468087","mag":0.72,"place":"1 km NE of The Geysers, CA","time":1795046318870,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468087","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":8,"magType":"md","status":"automatic","title":"M 0.7 - 1 km NE of The Geysers, CA","big45":false,"coords":[-122.7445,38.786,1.75]},{"id":"uw714140531","mag":1.51,"place":"1 km SE of Kapowsin, Washington","time":1795046219280,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140531","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":35,"magType":"ml","status":"reviewed","title":"M 1.5 Explosion - 1 km SE of Kapowsin, Washington","big45":false,"coords":[-122.214,46.9743,-0.26]},{"id":"aka2026wwssen","mag":1.9,"place":"84 km NW of Aleneva, Alaska","time":1795045788898,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwssen","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":56,"magType":"ml","status":"automatic","title":"M 1.9 - 84 km NW of Aleneva, Alaska","big45":false,"coords":[-153.775,58.67,86.8]},{"id":"pr71539518","mag":2.55,"place":"31 km SE of Esperanza, Puerto Rico","time":1795045471790,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/pr71539518","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":100,"magType":"md","status":"reviewed","title":"M 2.6 - 31 km SE of Esperanza, Puerto Rico","big45":false,"coords":[-65.2498,17.9095,20.49]},{"id":"hv75072272","mag":1.76,"place":"2 km SSE of P\u0101hala, Hawaii","time":1795045406300,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072272","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":48,"magType":"md","status":"automatic","title":"M 1.8 - 2 km SSE of P\u0101hala, Hawaii","big45":false,"coords":[-155.4672,19.1837,33.04]},{"id":"aka2026wwskef","mag":1.5,"place":"105 km W of Tyonek, Alaska","time":1795045235149,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwskef","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":35,"magType":"ml","status":"automatic","title":"M 1.5 - 105 km W of Tyonek, Alaska","big45":false,"coords":[-153.064,61.26,5]},{"id":"ci41363495","mag":3.36,"place":"18 km ENE of Borrego Springs, CA","time":1795045161280,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363495","tsunami":0,"felt":50,"cdi":3.1,"mmi":null,"alert":null,"sig":189,"magType":"ml","status":"reviewed","title":"M 3.4 - 18 km ENE of Borrego Springs, CA","big45":false,"coords":[-116.1913,33.3013,11.79]},{"id":"av94505513","mag":1.32,"place":"10 km WSW of Dutch Harbor, Alaska","time":1795044609290,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/av94505513","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":27,"magType":"ml","status":"reviewed","title":"M 1.3 - 10 km WSW of Dutch Harbor, Alaska","big45":false,"coords":[-166.6858,53.8558,8.84]},{"id":"aka2026wwrfnw","mag":2,"place":"5 km NW of Sterling, Alaska","time":1795043116257,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwrfnw","tsunami":0,"felt":1,"cdi":1,"mmi":null,"alert":null,"sig":62,"magType":"ml","status":"automatic","title":"M 2.0 - 5 km NW of Sterling, Alaska","big45":false,"coords":[-150.838,60.574,50]},{"id":"nn00927140","mag":1.12,"place":"40 km SSE of Sandy Valley, Nevada","time":1795042932281,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nn00927140","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":19,"magType":"ml","status":"reviewed","title":"M 1.1 Explosion - 40 km SSE of Sandy Valley, Nevada","big45":false,"coords":[-115.5348,35.462,0]},{"id":"ci41363487","mag":0.79,"place":"12 km SE of Winchester, CA","time":1795042814310,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363487","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"ml","status":"automatic","title":"M 0.8 - 12 km SE of Winchester, CA","big45":false,"coords":[-116.9965,33.6335,10.07]},{"id":"nc75468072","mag":1.96,"place":"2 km NNE of West Bishop, CA","time":1795042149480,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468072","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":59,"magType":"md","status":"automatic","title":"M 2.0 - 2 km NNE of West Bishop, CA","big45":false,"coords":[-118.447,37.3748,11.36]},{"id":"aka2026wwqonp","mag":1.8,"place":"43 km NNE of Chenega, Alaska","time":1795041938599,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwqonp","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":50,"magType":"ml","status":"automatic","title":"M 1.8 - 43 km NNE of Chenega, Alaska","big45":false,"coords":[-147.725,60.427,16.8]},{"id":"aka2026wwpuww","mag":0.8,"place":"74 km NW of Ninilchik, Alaska","time":1795040587897,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwpuww","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"ml","status":"automatic","title":"M 0.8 - 74 km NW of Ninilchik, Alaska","big45":false,"coords":[-152.687,60.492,5]},{"id":"us6000ubwa","mag":4.8,"place":"11 km SSW of Santa Gertrudis Miramar, Mexico","time":1795039612958,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubwa","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":354,"magType":"mb","status":"reviewed","title":"M 4.8 - 11 km SSW of Santa Gertrudis Miramar, Mexico","big45":true,"coords":[-95.4267,15.9616,35]},{"id":"aka2026wwpahg","mag":1.3,"place":"8 km ENE of Fox, Alaska","time":1795039153552,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwpahg","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"ml","status":"automatic","title":"M 1.3 - 8 km ENE of Fox, Alaska","big45":false,"coords":[-147.459,65.002,5]},{"id":"nc75468067","mag":0.96,"place":"4 km WNW of Cobb, CA","time":1795037999610,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468067","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":14,"magType":"md","status":"automatic","title":"M 1.0 - 4 km WNW of Cobb, CA","big45":false,"coords":[-122.7687,38.8353,10.74]},{"id":"us6000ubw3","mag":5.2,"place":"169 km S of Attu Station, Alaska","time":1795037327088,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubw3","tsunami":0,"felt":null,"cdi":null,"mmi":2.826,"alert":null,"sig":416,"magType":"mww","status":"reviewed","title":"M 5.2 - 169 km S of Attu Station, Alaska","big45":true,"coords":[172.8596,51.3379,10]},{"id":"uu80165406","mag":0.85,"place":"45 km SSE of Mammoth, Wyoming","time":1795036600250,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165406","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":11,"magType":"md","status":"reviewed","title":"M 0.9 - 45 km SSE of Mammoth, Wyoming","big45":false,"coords":[-110.4425,44.611,4.67]},{"id":"aka2026wwnoob","mag":2.1,"place":"19 km S of Tatitlek, Alaska","time":1795036542252,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwnoob","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":68,"magType":"ml","status":"automatic","title":"M 2.1 - 19 km S of Tatitlek, Alaska","big45":false,"coords":[-146.699,60.693,20.6]},{"id":"nc75468057","mag":0.78,"place":"4 km NNW of The Geysers, CA","time":1795035630480,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468057","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":9,"magType":"md","status":"automatic","title":"M 0.8 - 4 km NNW of The Geysers, CA","big45":false,"coords":[-122.7693,38.8072,1.33]},{"id":"uw714140421","mag":-0.67,"place":"22 km ENE of Ashford, Washington","time":1795035578680,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140421","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":0,"magType":"md","status":"reviewed","title":"M -0.7 - 22 km ENE of Ashford, Washington","big45":false,"coords":[-121.7657,46.8487,0.26]},{"id":"uw714140431","mag":0.53,"place":"22 km ENE of Ashford, Washington","time":1795035567300,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140431","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":4,"magType":"ml","status":"reviewed","title":"M 0.5 - 22 km ENE of Ashford, Washington","big45":false,"coords":[-121.766,46.8478,-0.14]},{"id":"uu80008343","mag":1.64,"place":"15 km NNE of Milford, Utah","time":1795035477860,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80008343","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":41,"magType":"md","status":"reviewed","title":"M 1.6 - 15 km NNE of Milford, Utah","big45":false,"coords":[-112.9212,38.5223,3.9]},{"id":"aka2026wwmqpr","mag":1.9,"place":"21 km WSW of Susitna, Alaska","time":1795034889191,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwmqpr","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":56,"magType":"ml","status":"automatic","title":"M 1.9 - 21 km WSW of Susitna, Alaska","big45":false,"coords":[-150.877,61.468,63.1]},{"id":"us6000ubvu","mag":4.7,"place":"134 km SW of Lorengau, Papua New Guinea","time":1795034319129,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubvu","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":340,"magType":"mb","status":"reviewed","title":"M 4.7 - 134 km SW of Lorengau, Papua New Guinea","big45":true,"coords":[146.4693,-2.9421,16.86]},{"id":"aka2026wwmhbf","mag":0.9,"place":"73 km WNW of Beluga, Alaska","time":1795034224511,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwmhbf","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":12,"magType":"ml","status":"automatic","title":"M 0.9 - 73 km WNW of Beluga, Alaska","big45":false,"coords":[-152.326,61.412,21.1]},{"id":"ci41363431","mag":0.58,"place":"3 km WSW of Anza, CA","time":1795034124080,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363431","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":5,"magType":"ml","status":"reviewed","title":"M 0.6 - 3 km WSW of Anza, CA","big45":false,"coords":[-116.7053,33.54,5.68]},{"id":"us6000ubvt","mag":4.4,"place":"12 km SSE of Jimalalud, Philippines","time":1795033854635,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us6000ubvt","tsunami":0,"felt":1,"cdi":2.2,"mmi":null,"alert":null,"sig":298,"magType":"mb","status":"reviewed","title":"M 4.4 - 12 km SSE of Jimalalud, Philippines","big45":false,"coords":[123.257,9.8835,10]},{"id":"uu80165401","mag":1.5,"place":"17 km WSW of Levan, Utah","time":1795032833830,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165401","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":35,"magType":"md","status":"reviewed","title":"M 1.5 - 17 km WSW of Levan, Utah","big45":false,"coords":[-112.0563,39.5132,4.36]},{"id":"nc75468052","mag":0.78,"place":"7 km NW of The Geysers, CA","time":1795031985700,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468052","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":9,"magType":"md","status":"automatic","title":"M 0.8 - 7 km NW of The Geysers, CA","big45":false,"coords":[-122.8102,38.8242,2.15]},{"id":"nc75468047","mag":1.54,"place":"7 km NW of The Geysers, CA","time":1795031930390,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468047","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":36,"magType":"md","status":"automatic","title":"M 1.5 - 7 km NW of The Geysers, CA","big45":false,"coords":[-122.8098,38.8233,2.27]},{"id":"nc75468042","mag":1.05,"place":"7 km NW of The Geysers, CA","time":1795031337060,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468042","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":17,"magType":"md","status":"automatic","title":"M 1.1 - 7 km NW of The Geysers, CA","big45":false,"coords":[-122.8103,38.8237,2.3]},{"id":"nc75468037","mag":1.07,"place":"3 km SW of Anderson Springs, CA","time":1795031231830,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468037","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":18,"magType":"md","status":"automatic","title":"M 1.1 - 3 km SW of Anderson Springs, CA","big45":false,"coords":[-122.7202,38.7553,2.25]},{"id":"av94505348","mag":0.97,"place":"11 km WSW of Dutch Harbor, Alaska","time":1795030421880,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/av94505348","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":14,"magType":"ml","status":"reviewed","title":"M 1.0 - 11 km WSW of Dutch Harbor, Alaska","big45":false,"coords":[-166.7047,53.8565,8.33]},{"id":"nc75468027","mag":0.7,"place":"6 km W of Cobb, CA","time":1795030068750,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468027","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":8,"magType":"md","status":"automatic","title":"M 0.7 - 6 km W of Cobb, CA","big45":false,"coords":[-122.795,38.8265,2.23]},{"id":"hv75072122","mag":1.76,"place":"16 km S of Volcano, Hawaii","time":1795029882190,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072122","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":48,"magType":"md","status":"automatic","title":"M 1.8 - 16 km S of Volcano, Hawaii","big45":false,"coords":[-155.2105,19.2985,7.61]},{"id":"us7000tz37","mag":6.1,"place":"Pacific-Antarctic Ridge","time":1795029263713,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz37","tsunami":0,"felt":null,"cdi":null,"mmi":0,"alert":"green","sig":572,"magType":"mww","status":"reviewed","title":"M 6.1 - Pacific-Antarctic Ridge","big45":true,"coords":[-146.746,-57.7514,10]},{"id":"uw714140391","mag":0.96,"place":"1 km SW of Entiat, Washington","time":1795028633630,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140391","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":14,"magType":"ml","status":"reviewed","title":"M 1.0 - 1 km SW of Entiat, Washington","big45":false,"coords":[-120.224,47.6678,2.48]},{"id":"nc75468022","mag":2.55,"place":"14 km N of Susanville, CA","time":1795027766640,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75468022","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":100,"magType":"md","status":"automatic","title":"M 2.6 - 14 km N of Susanville, CA","big45":false,"coords":[-120.6687,40.5398,4.09]},{"id":"us7000tz33","mag":4.5,"place":"23 km SSW of Ollag\u00fce, Chile","time":1795027613317,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz33","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":312,"magType":"mb","status":"reviewed","title":"M 4.5 - 23 km SSW of Ollag\u00fce, Chile","big45":true,"coords":[-68.368,-21.411,133.87]},{"id":"hv75072017","mag":1.82,"place":"3 km WSW of P\u0101hala, Hawaii","time":1795026484910,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75072017","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":51,"magType":"ml","status":"reviewed","title":"M 1.8 - 3 km WSW of P\u0101hala, Hawaii","big45":false,"coords":[-155.5133,19.1895,32.8]},{"id":"aka2026wwhuzv","mag":2,"place":"72 km WNW of Petersville, Alaska","time":1795026192083,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwhuzv","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":62,"magType":"ml","status":"automatic","title":"M 2.0 - 72 km WNW of Petersville, Alaska","big45":false,"coords":[-152.145,62.647,5]},{"id":"ci41363415","mag":1.53,"place":"9 km NE of Coso Junction, CA","time":1795025845730,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363415","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":36,"magType":"ml","status":"reviewed","title":"M 1.5 - 9 km NE of Coso Junction, CA","big45":false,"coords":[-117.866,36.0985,3.66]},{"id":"aka2026wwhpau","mag":1.3,"place":"55 km NE of Kenny Lake, Alaska","time":1795025780585,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwhpau","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"ml","status":"automatic","title":"M 1.3 - 55 km NE of Kenny Lake, Alaska","big45":false,"coords":[-144.091,62.01,3.9]},{"id":"aka2026wwhmyu","mag":1.3,"place":"86 km NNW of Karluk, Alaska","time":1795025637434,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwhmyu","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":26,"magType":"ml","status":"automatic","title":"M 1.3 - 86 km NNW of Karluk, Alaska","big45":false,"coords":[-154.998,58.286,5]},{"id":"aka2026wwhlov","mag":2.2,"place":"15 km NE of Stevens Village, Alaska","time":1795025541932,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwhlov","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":74,"magType":"ml","status":"automatic","title":"M 2.2 - 15 km NE of Stevens Village, Alaska","big45":false,"coords":[-148.874,66.109,5.5]},{"id":"us7000tz2w","mag":5,"place":"46 km NNE of Kilimatinde, Tanzania","time":1795025280785,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz2w","tsunami":0,"felt":3,"cdi":3.4,"mmi":null,"alert":null,"sig":386,"magType":"mb","status":"reviewed","title":"M 5.0 - 46 km NNE of Kilimatinde, Tanzania","big45":true,"coords":[35.1065,-5.4599,10]},{"id":"us7000tz32","mag":4.3,"place":"45 km NNE of Kilimatinde, Tanzania","time":1795025251393,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz32","tsunami":0,"felt":2,"cdi":2.9,"mmi":null,"alert":null,"sig":285,"magType":"mb","status":"reviewed","title":"M 4.3 - 45 km NNE of Kilimatinde, Tanzania","big45":false,"coords":[35.1024,-5.4691,10]},{"id":"aka2026wwhgzq","mag":1.9,"place":"54 km W of Happy Valley, Alaska","time":1795025221444,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwhgzq","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":56,"magType":"ml","status":"reviewed","title":"M 1.9 - 54 km W of Happy Valley, Alaska","big45":false,"coords":[-152.701,60.022,102]},{"id":"us7000tz1n","mag":5.3,"place":"4 km NNW of Tsunagi, Japan","time":1795022543454,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz1n","tsunami":0,"felt":6,"cdi":5,"mmi":null,"alert":null,"sig":435,"magType":"mww","status":"reviewed","title":"M 5.3 - 4 km NNW of Tsunagi, Japan","big45":true,"coords":[130.4609,32.2779,10]},{"id":"ci41363351","mag":1.03,"place":"30 km SE of Bodfish, CA","time":1795022254560,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363351","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":16,"magType":"ml","status":"reviewed","title":"M 1.0 - 30 km SE of Bodfish, CA","big45":false,"coords":[-118.2465,35.4062,5.36]},{"id":"hv75071947","mag":1.84,"place":"15 km SE of P\u0101hala, Hawaii","time":1795022205310,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75071947","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":52,"magType":"md","status":"automatic","title":"M 1.8 - 15 km SE of P\u0101hala, Hawaii","big45":false,"coords":[-155.3667,19.1187,28.06]},{"id":"hv75071942","mag":1.47,"place":"6 km SW of Honaunau-Napoopoo, Hawaii","time":1795022194930,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75071942","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":33,"magType":"md","status":"reviewed","title":"M 1.5 - 6 km SW of Honaunau-Napoopoo, Hawaii","big45":false,"coords":[-155.8998,19.4103,31.01]},{"id":"uu80165361","mag":1.42,"place":"14 km NNE of Milford, Utah","time":1795020899830,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165361","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":31,"magType":"ml","status":"reviewed","title":"M 1.4 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.9275,38.5138,3]},{"id":"aka2026wwepnb","mag":1.8,"place":"39 km W of Nikiski, Alaska","time":1795020416040,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wwepnb","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":50,"magType":"ml","status":"automatic","title":"M 1.8 - 39 km W of Nikiski, Alaska","big45":false,"coords":[-152.001,60.748,89]},{"id":"hv75071927","mag":1.85,"place":"10 km E of P\u0101hala, Hawaii","time":1795019774440,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75071927","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":53,"magType":"md","status":"automatic","title":"M 1.9 - 10 km E of P\u0101hala, Hawaii","big45":false,"coords":[-155.38,19.2117,8.99]},{"id":"hv75071922","mag":1.64,"place":"11 km ENE of P\u0101hala, Hawaii","time":1795019769370,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75071922","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":41,"magType":"ml","status":"reviewed","title":"M 1.6 - 11 km ENE of P\u0101hala, Hawaii","big45":false,"coords":[-155.3857,19.2503,30]},{"id":"us7000tz1f","mag":2.7,"place":"9 km NW of Seeley Lake, Montana","time":1795019607127,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz1f","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":112,"magType":"ml","status":"reviewed","title":"M 2.7 - 9 km NW of Seeley Lake, Montana","big45":false,"coords":[-113.5736,47.2371,10]},{"id":"uu80008338","mag":1.44,"place":"14 km NNE of Milford, Utah","time":1795019504850,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80008338","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":32,"magType":"ml","status":"reviewed","title":"M 1.4 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.922,38.509,2.56]},{"id":"uu80165391","mag":1.53,"place":"14 km NNE of Milford, Utah","time":1795019472220,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165391","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":36,"magType":"ml","status":"reviewed","title":"M 1.5 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.9212,38.5058,2.73]},{"id":"uw714140301","mag":2.5,"place":"83 km W of Lincoln City, Oregon","time":1795019102070,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uw714140301","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":96,"magType":"ml","status":"reviewed","title":"M 2.5 - 83 km W of Lincoln City, Oregon","big45":false,"coords":[-125.0627,45.0855,-0.21]},{"id":"us7000tz1c","mag":4.2,"place":"off the coast of Oregon","time":1795019067988,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz1c","tsunami":0,"felt":1,"cdi":1,"mmi":null,"alert":null,"sig":271,"magType":"mb","status":"reviewed","title":"M 4.2 - off the coast of Oregon","big45":false,"coords":[-128.0431,43.7963,10]},{"id":"us7000tz1a","mag":5.3,"place":"149 km SSW of Merizo Village, Guam","time":1795018011220,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/us7000tz1a","tsunami":0,"felt":0,"cdi":1,"mmi":null,"alert":null,"sig":432,"magType":"mb","status":"reviewed","title":"M 5.3 - 149 km SSW of Merizo Village, Guam","big45":true,"coords":[143.9927,12.0918,10]},{"id":"av94505203","mag":1.34,"place":"32 km WNW of Adak, Alaska","time":1795017986650,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/av94505203","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":28,"magType":"ml","status":"reviewed","title":"M 1.3 - 32 km WNW of Adak, Alaska","big45":false,"coords":[-177.0857,51.9495,4.7]},{"id":"uu80165386","mag":1.24,"place":"15 km NNE of Milford, Utah","time":1795015629660,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165386","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":24,"magType":"md","status":"reviewed","title":"M 1.2 - 15 km NNE of Milford, Utah","big45":false,"coords":[-112.9278,38.516,3.48]},{"id":"uu80165381","mag":1.83,"place":"14 km NNE of Milford, Utah","time":1795014447470,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165381","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":52,"magType":"ml","status":"reviewed","title":"M 1.8 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.931,38.5145,1.52]},{"id":"uu80165376","mag":1.4,"place":"14 km NNE of Milford, Utah","time":1795013809190,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165376","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":30,"magType":"ml","status":"reviewed","title":"M 1.4 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.9287,38.5135,3.82]},{"id":"ci41363295","mag":0.7,"place":"10 km S of Idyllwild, CA","time":1795012877060,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363295","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":8,"magType":"ml","status":"reviewed","title":"M 0.7 - 10 km S of Idyllwild, CA","big45":false,"coords":[-116.7235,33.649,15.75]},{"id":"av94505158","mag":1.69,"place":"64 km ENE of Pedro Bay, Alaska","time":1795012134580,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/av94505158","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":44,"magType":"ml","status":"reviewed","title":"M 1.7 - 64 km ENE of Pedro Bay, Alaska","big45":false,"coords":[-153.0807,60.0445,-1.65]},{"id":"ci41363287","mag":3.3,"place":"91 km SW of San Clemente Is. (NW tip), CA","time":1795010325390,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363287","tsunami":0,"felt":1,"cdi":1,"mmi":null,"alert":null,"sig":168,"magType":"ml","status":"reviewed","title":"M 3.3 - 91 km SW of San Clemente Is. (NW tip), CA","big45":false,"coords":[-119.212,32.3887,5.76]},{"id":"nn00927112","mag":2.85,"place":"33 km SE of Mina, Nevada","time":1795010209271,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nn00927112","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":125,"magType":"ml","status":"reviewed","title":"M 2.9 - 33 km SE of Mina, Nevada","big45":false,"coords":[-117.8467,38.1669,7.18]},{"id":"aka2026wvyxsm","mag":2.3,"place":"43 km W of Happy Valley, Alaska","time":1795010189721,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvyxsm","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":81,"magType":"ml","status":"automatic","title":"M 2.3 - 43 km W of Happy Valley, Alaska","big45":false,"coords":[-152.509,59.978,90.8]},{"id":"aka2026wvyurf","mag":0.9,"place":"68 km WNW of Beluga, Alaska","time":1795009978150,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvyurf","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":12,"magType":"ml","status":"automatic","title":"M 0.9 - 68 km WNW of Beluga, Alaska","big45":false,"coords":[-152.247,61.383,5]},{"id":"ci41363279","mag":0.31,"place":"4 km WSW of Anza, CA","time":1795008933690,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/ci41363279","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":1,"magType":"ml","status":"reviewed","title":"M 0.3 - 4 km WSW of Anza, CA","big45":false,"coords":[-116.7098,33.5358,6.82]},{"id":"uu80165366","mag":1.47,"place":"14 km NNE of Milford, Utah","time":1795008017240,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/uu80165366","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":33,"magType":"ml","status":"reviewed","title":"M 1.5 - 14 km NNE of Milford, Utah","big45":false,"coords":[-112.9242,38.5128,2.88]},{"id":"nc75467972","mag":2.93,"place":"49 km W of Petrolia, CA","time":1795007118670,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75467972","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":132,"magType":"md","status":"automatic","title":"M 2.9 - 49 km W of Petrolia, CA","big45":false,"coords":[-124.8642,40.2735,5.02]},{"id":"hv75071852","mag":1.75,"place":"1 km SW of P\u0101hala, Hawaii","time":1795006087230,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/hv75071852","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":47,"magType":"ml","status":"reviewed","title":"M 1.8 - 1 km SW of P\u0101hala, Hawaii","big45":false,"coords":[-155.4923,19.193,32.02]},{"id":"aka2026wvwonz","mag":3.3,"place":"2 km N of Skwentna, Alaska","time":1795005967933,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvwonz","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":168,"magType":"ml","status":"automatic","title":"M 3.3 - 2 km N of Skwentna, Alaska","big45":false,"coords":[-151.397,62.016,77.8]},{"id":"aka2026wvwizs","mag":0.8,"place":"63 km WNW of Beluga, Alaska","time":1795005572009,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvwizs","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":10,"magType":"ml","status":"automatic","title":"M 0.8 - 63 km WNW of Beluga, Alaska","big45":false,"coords":[-152.197,61.331,5]},{"id":"aka2026wvvyxt","mag":4,"place":"136 km SW of Adak, Alaska","time":1795004875408,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvvyxt","tsunami":0,"felt":null,"cdi":null,"mmi":3.238,"alert":null,"sig":246,"magType":"ml","status":"reviewed","title":"M 4.0 - 136 km SW of Adak, Alaska","big45":false,"coords":[-178.254,51.171,21.4]},{"id":"aka2026wvviba","mag":1.6,"place":"68 km WNW of Karluk, Alaska","time":1795003706674,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvviba","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":39,"magType":"ml","status":"automatic","title":"M 1.6 - 68 km WNW of Karluk, Alaska","big45":false,"coords":[-155.452,57.883,15.8]},{"id":"aka2026wvvgte","mag":1.8,"place":"27 km ESE of Skwentna, Alaska","time":1795003617647,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/aka2026wvvgte","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":50,"magType":"ml","status":"automatic","title":"M 1.8 - 27 km ESE of Skwentna, Alaska","big45":false,"coords":[-150.894,61.925,13.2]},{"id":"av94504998","mag":1.22,"place":"71 km WNW of Karluk, Alaska","time":1795003457330,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/av94504998","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":23,"magType":"ml","status":"reviewed","title":"M 1.2 - 71 km WNW of Karluk, Alaska","big45":false,"coords":[-155.4875,57.8917,12.32]},{"id":"nc75467962","mag":1.49,"place":"8 km NE of Ridgemark, CA","time":1795001672710,"url":"https://earthquake.usgs.gov/earthquakes/eventpage/nc75467962","tsunami":0,"felt":null,"cdi":null,"mmi":null,"alert":null,"sig":34,"magType":"md","status":"automatic","title":"M 1.5 - 8 km NE of Ridgemark, CA","big45":false,"coords":[-121.303,36.8688,10.77]}]};
+var FETCHED_LABEL = "19 November 2026, 18:30 WIB";
+var FEEDS = {
+  all: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson",
+  big: "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson"
+};
+
+var AUTO_REFRESH_MS = 60000;
+var REDUCED_MOTION = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+var state = { view: "semua", filter: "semua", query: "", data: null, live: false, fetching: false, lastLiveAt: null, nextRefreshAt: null, autoTimer: null, tickTimer: null };
+
+/* ---------- Format waktu: USGS memberi epoch UTC; tampilkan WIB ---------- */
+var BULAN = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+function wibParts(ms){
+  var fmt = new Intl.DateTimeFormat("en-GB", { timeZone:"Asia/Jakarta", year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit", second:"2-digit", hour12:false });
+  var o = {};
+  fmt.formatToParts(new Date(ms)).forEach(function(p){ o[p.type] = p.value; });
+  return o;
+}
+function fmtTanggal(ms){ var p = wibParts(ms); return Number(p.day) + " " + BULAN[Number(p.month)-1] + " " + p.year; }
+function fmtJam(ms){ var p = wibParts(ms); return p.hour + ":" + p.minute + ":" + p.second + " WIB"; }
+function fmtTanggalJam(ms){ return fmtTanggal(ms) + ", " + fmtJam(ms); }
+function fmtUTC(ms){ var d = new Date(ms); return d.toISOString().replace("T"," ").slice(0,19) + " UTC"; }
+function fmtRelatif(ms){
+  var diff = Date.now() - ms;
+  if (diff < 0) diff = 0;
+  var mnt = Math.floor(diff/60000);
+  if (mnt < 1) return "baru saja";
+  if (mnt < 60) return mnt + " menit lalu";
+  var jam = Math.floor(mnt/60);
+  if (jam < 24) return jam + " jam " + (mnt%60) + " menit lalu";
+  return Math.floor(jam/24) + " hari lalu";
+}
+function fmtMag(m){ return (m == null || isNaN(m)) ? "—" : Number(m).toFixed(1).replace(".", ","); }
+function magLabel(m){ return "M " + fmtMag(m); }
+function magColor(m){
+  if (m == null || isNaN(m)) return "#606060";
+  if (m >= 6) return "#B00000";
+  if (m >= 5) return "#FF0000";
+  if (m >= 4) return "#E65100";
+  if (m >= 3) return "#FB8C00";
+  return "#9E9E9E";
+}
+function esc(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+  });
+}
+function fmtCoord(lat, lon){
+  return Math.abs(lat).toFixed(2) + "° " + (lat >= 0 ? "LU" : "LS") + ", " + Math.abs(lon).toFixed(2) + "° " + (lon >= 0 ? "BT" : "BB");
+}
+function isIndonesia(q){
+  if (/indonesia/i.test(q.place || "")) return true;
+  return q.lon >= 95 && q.lon <= 141.5 && q.lat >= -11.5 && q.lat <= 6.5;
+}
+
+/* ---------- Normalisasi GeoJSON USGS -> daftar internal ---------- */
+function toQuake(f, bigIds){
+  var p = f.properties || {}, c = (f.geometry && f.geometry.coordinates) || [];
+  var q = {
+    id: f.id,
+    mag: (p.mag == null ? null : Number(p.mag)),
+    magType: p.magType || "",
+    place: p.place || p.title || "Lokasi tidak diketahui",
+    title: p.title || "",
+    time: Number(p.time),
+    url: p.url || "",
+    tsunami: Number(p.tsunami || 0),
+    felt: (p.felt == null ? null : Number(p.felt)),
+    cdi: (p.cdi == null ? null : Number(p.cdi)),
+    mmi: (p.mmi == null ? null : Number(p.mmi)),
+    alert: p.alert || "",
+    sig: (p.sig == null ? null : Number(p.sig)),
+    status: p.status || "",
+    lon: Number(c[0]), lat: Number(c[1]), depthKm: (c[2] == null ? 0 : Number(c[2])),
+    tags: {}
+  };
+  q.tags.besar45 = !!(bigIds && bigIds[q.id]) || (q.mag != null && q.mag >= 4.5);
+  q.tags.dirasakan = q.felt != null && q.felt > 0;
+  q.tags.indonesia = isIndonesia(q);
+  return q;
+}
+function normalizeFeed(allFeed, bigFeed){
+  var bigIds = {};
+  ((bigFeed && bigFeed.features) || []).forEach(function(f){ bigIds[f.id] = true; });
+  var list = ((allFeed && allFeed.features) || []).map(function(f){ return toQuake(f, bigIds); });
+  list = list.filter(function(q){ return !isNaN(q.lat) && !isNaN(q.lon) && q.time; });
+  list.sort(function(a,b){ return b.time - a.time; });
+  if (list.length) list[0].tags.terbaru = true;
+  var sig = list.filter(function(q){ return q.tags.besar45; });
+  return { list: list, big: sig, latest: list[0] || null, featured: sig[0] || list[0] || null };
+}
+function normalizeSnapshot(snap){
+  var allFeed = { features: (snap.features || []).map(function(f){
+    return {
+      id: f.id,
+      properties: { mag:f.mag, place:f.place, time:f.time, url:f.url, tsunami:f.tsunami, felt:f.felt, cdi:f.cdi, mmi:f.mmi, alert:f.alert, sig:f.sig, magType:f.magType, status:f.status, title:f.title },
+      geometry: { coordinates: f.coords }
+    };
+  })};
+  var bigFeed = { features: (snap.features || []).filter(function(f){ return f.big45; }).map(function(f){ return { id: f.id }; }) };
+  return normalizeFeed(allFeed, bigFeed);
+}
+
+function waveSVG(seed, color){
+  var bars = "", x = 0, s = seed * 7919;
+  function rnd(){ s = (s * 9301 + 49297) % 233280; return s / 233280; }
+  while (x < 320) {
+    var w = 2 + rnd()*3, h = 4 + rnd()*rnd()*36, gap = 2 + rnd()*4;
+    bars += '<rect x="' + x.toFixed(1) + '" y="' + (44-h).toFixed(1) + '" width="' + w.toFixed(1) + '" height="' + h.toFixed(1) + '" fill="' + color + '"/>';
+    x += w + gap;
+  }
+  return '<svg class="wave" viewBox="0 0 320 44" preserveAspectRatio="none" aria-hidden="true">' + bars + '</svg>';
+}
+function filtered(){
+  var q = state.query.trim().toLowerCase();
+  var latestDate = state.data.latest ? fmtTanggal(state.data.latest.time) : "";
+  return state.data.list.filter(function(g){
+    if (state.view === "terbaru" && !g.tags.terbaru) return false;
+    if (state.view === "besar45" && !g.tags.besar45) return false;
+    if (state.view === "dirasakan" && !g.tags.dirasakan) return false;
+    if (state.view === "indonesia" && !g.tags.indonesia) return false;
+    var f = state.filter;
+    if (f === "besar45" && !g.tags.besar45) return false;
+    if (f === "besar" && !(g.mag != null && g.mag >= 5)) return false;
+    if (f === "dirasakan" && !g.tags.dirasakan) return false;
+    if (f === "indonesia" && !g.tags.indonesia) return false;
+    if (f === "dangkal" && !(g.depthKm < 70)) return false;
+    if (f === "menengah" && !(g.depthKm >= 70 && g.depthKm <= 300)) return false;
+    if (f === "dalam" && !(g.depthKm > 300)) return false;
+    if (f === "hariini" && fmtTanggal(g.time) !== latestDate) return false;
+    if (q) {
+      var hay = (g.place + " " + g.title).toLowerCase();
+      if (hay.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+}
+var VIEW_TITLES = { semua:"Semua gempa · 24 jam terakhir", terbaru:"Gempa terbaru", besar45:"Gempa magnitudo 4.5+", dirasakan:"Gempa yang dirasakan warga", indonesia:"Gempa di Indonesia" };
+
+/* ---------- Peta Leaflet ---------- */
+var map = null, markerLayer = null, markersById = {}, mapReady = false;
+/* Penyedia ubin peta: utama Esri World Street Map (gratis, tanpa API key).
+   CARTO tidak dipakai lagi — ubin basemaps-nya sekarang menuntut API key dan
+   menampilkan watermark "API KEY REQUIRED" di atas peta. tile.openstreetmap.org
+   juga tidak dipakai — server sukarelawan OSM memblokir aplikasi produksi
+   dengan 403 "Access blocked". Jika Esri gagal dimuat, otomatis beralih ke
+   OpenStreetMap France (gaya HOT), lalu ke OpenStreetMap Jerman. */
+var tileLayer = null, tileProviderIdx = -1, tileErrCount = 0, tileOkCount = 0;
+function tileProviders(){
+  var osmAttr = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors';
+  var list = [];
+  list.push({
+    url:"https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+    maxZoom:18,
+    attribution:'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012'
+  });
+  list.push({ url:"https://{s}.tile.openstreetmap.fr/hot/{z}/{x}/{y}.png", subdomains:"abc", maxZoom:19, attribution: osmAttr + ' &middot; gaya HOT &copy; Humanitarian OpenStreetMap Team' });
+  list.push({ url:"https://tile.openstreetmap.de/{z}/{x}/{y}.png", maxZoom:18, attribution: osmAttr });
+  return list;
+}
+function addTileLayer(idx){
+  var providers = tileProviders();
+  if (idx >= providers.length) {
+    document.getElementById("mapFallback").classList.add("show");
+    return;
+  }
+  tileProviderIdx = idx; tileErrCount = 0; tileOkCount = 0;
+  var p = providers[idx];
+  var opts = { maxZoom: p.maxZoom, attribution: p.attribution };
+  if (p.subdomains) opts.subdomains = p.subdomains;
+  tileLayer = L.tileLayer(p.url, opts);
+  tileLayer.on("tileerror", function(){
+    tileErrCount++;
+    if (tileErrCount >= 8 && tileOkCount <= 2) switchTileProvider();
+  });
+  tileLayer.on("tileload", function(){ tileOkCount++; });
+  tileLayer.addTo(map);
+  /* Pengawas: bila dalam 7 detik hampir tidak ada ubin yang berhasil dimuat, ganti penyedia. */
+  setTimeout(function(){
+    if (tileLayer && tileProviderIdx === idx && tileOkCount <= 2 && tileErrCount >= 3) switchTileProvider();
+  }, 7000);
+}
+function switchTileProvider(){
+  if (!map || !tileLayer) return;
+  map.removeLayer(tileLayer);
+  tileLayer = null;
+  addTileLayer(tileProviderIdx + 1);
+}
+function popupHTML(g){
+  var rows =
+    '<div class="pop-row"><b>Waktu:</b> ' + esc(fmtTanggalJam(g.time)) + ' (' + esc(fmtRelatif(g.time)) + ')</div>' +
+    '<div class="pop-row"><b>Kedalaman:</b> ' + esc(Number(g.depthKm).toFixed(1)) + ' km</div>' +
+    '<div class="pop-row"><b>Koordinat:</b> ' + esc(fmtCoord(g.lat, g.lon)) + ' <span class="mono">(' + g.lat.toFixed(3) + ', ' + g.lon.toFixed(3) + ')</span></div>' +
+    (g.felt ? '<div class="pop-row"><b>Dirasakan:</b> ' + g.felt + ' laporan warga' + (g.cdi ? ' · intensitas CDI ' + g.cdi : '') + '</div>' : '') +
+    (g.tsunami ? '<div class="pop-row"><b>Flag tsunami USGS:</b> ada — cek peringatan resmi BMKG/InaTEWS &amp; otoritas setempat</div>' : '');
+  return '<span class="pop-mag" style="background:' + magColor(g.mag) + '">' + esc(magLabel(g.mag)) + '</span>' +
+    '<p class="pop-place">' + esc(g.place) + '</p>' + rows +
+    '<div class="pop-actions">' +
+      '<button type="button" class="pop-btn" data-detail-id="' + esc(g.id) + '">Detail lengkap</button>' +
+      (g.url ? '<a class="pop-btn ghost" href="' + esc(g.url) + '" target="_blank" rel="noopener">Halaman USGS</a>' : '') +
+    '</div>';
+}
+function initMap(){
+  if (!window.L) {
+    document.getElementById("mapFallback").classList.add("show");
+    return;
+  }
+  try {
+    map = L.map("map", { worldCopyJump: true, scrollWheelZoom: true }).setView([5, 118], 3);
+    addTileLayer(0);
+    markerLayer = L.layerGroup().addTo(map);
+    mapReady = true;
+  } catch(e) {
+    document.getElementById("mapFallback").classList.add("show");
+    mapReady = false;
+  }
+}
+function renderMarkers(items){
+  if (!mapReady || !markerLayer) return;
+  markerLayer.clearLayers();
+  markersById = {};
+  items.forEach(function(g){
+    var r = g.mag == null ? 6 : Math.min(26, 6 + g.mag * 2.4);
+    var mk = L.circleMarker([g.lat, g.lon], {
+      radius: r, color: "#FFFFFF", weight: 1.6,
+      fillColor: magColor(g.mag), fillOpacity: 0.88
+    });
+    mk.bindPopup(popupHTML(g), { maxWidth: 320 });
+    mk.on("click", function(){ /* popup terbuka otomatis oleh Leaflet */ });
+    mk.addTo(markerLayer);
+    markersById[g.id] = mk;
+    g._marker = mk;
+  });
+}
+function fitMapToItems(items){
+  if (!mapReady || !items.length) return;
+  var pts = items.map(function(g){ return [g.lat, g.lon]; });
+  map.flyToBounds(pts, { padding: [28, 28], duration: REDUCED_MOTION ? 0 : 1.1, maxZoom: 5 });
+}
+function flyToQuake(g, opts){
+  opts = opts || {};
+  if (!g) return;
+  if (!mapReady) { openDetail(g); return; }
+  document.getElementById("mapSection").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
+  var targetZoom = Math.max(map.getZoom(), 6);
+  var opened = false;
+  function openIt(){
+    if (opened) return; opened = true;
+    var mk = markersById[g.id];
+    if (mk) mk.openPopup();
+    else if (opts.openDetailFallback) openDetail(g);
+  }
+  map.once("moveend", function(){ setTimeout(openIt, 60); });
+  map.flyTo([g.lat, g.lon], targetZoom, { duration: REDUCED_MOTION ? 0 : 1.4 });
+  setTimeout(openIt, REDUCED_MOTION ? 150 : 1650);
+}
+
+/* ---------- Render ---------- */
+function renderFeatured(){
+  var a = state.data.featured; if (!a) return;
+  var el = document.getElementById("featuredSection");
+  var recent = state.data.list.slice(0, 5);
+  el.innerHTML =
+    '<div class="feat-info">' +
+      '<p class="feat-kicker">Gempa signifikan terbaru · M 4,5+ dalam 24 jam</p>' +
+      '<h2>' + esc(a.place) + '</h2>' +
+      '<div class="feat-meta"><span>USGS</span><span>•</span><span>' + esc(fmtTanggalJam(a.time)) + '</span><span>•</span><span>' + esc(fmtRelatif(a.time)) + '</span></div>' +
+      '<div class="mag-hero"><div class="mag-big" style="background:' + magColor(a.mag) + '"><b>' + esc(fmtMag(a.mag)) + '</b><small>MAGNITUDO</small></div>' +
+      '<p><b>Gempa M 4,5+ paling baru di dunia</b>Kedalaman ' + esc(Number(a.depthKm).toFixed(1)) + ' km — ' + (a.felt ? 'dirasakan warga, ' + a.felt + ' laporan masuk ke USGS.' : 'belum ada laporan dirasakan pada rilis ini.') + '</p></div>' +
+      '<div class="spec-grid">' +
+        '<div class="spec"><small>Waktu (WIB)</small><strong>' + esc(fmtTanggalJam(a.time)) + '</strong></div>' +
+        '<div class="spec"><small>Waktu (UTC)</small><strong class="mono" style="font-size:13.5px">' + esc(fmtUTC(a.time)) + '</strong></div>' +
+        '<div class="spec"><small>Kedalaman</small><strong>' + esc(Number(a.depthKm).toFixed(1)) + ' km</strong></div>' +
+        '<div class="spec"><small>Koordinat</small><strong class="mono">' + a.lat.toFixed(3) + ', ' + a.lon.toFixed(3) + '</strong></div>' +
+        '<div class="spec"><small>Posisi</small><strong>' + esc(fmtCoord(a.lat, a.lon)) + '</strong></div>' +
+        '<div class="spec"><small>Tipe magnitudo / status</small><strong>' + esc((a.magType || "—").toUpperCase()) + ' · ' + esc(a.status || "—") + '</strong></div>' +
+      '</div>' +
+      (a.tsunami
+        ? '<div class="alert-box warn"><b>Flag tsunami aktif dari USGS</b>Gempa ini ditandai berpotensi tsunami oleh USGS. Untuk wilayah Indonesia, ikuti peringatan resmi BMKG / InaTEWS.</div>'
+        : '<div class="alert-box"><b>Tidak ada flag tsunami dari USGS</b>USGS tidak menandai gempa ini berpotensi tsunami. Peringatan resmi untuk Indonesia tetap mengacu ke BMKG / InaTEWS.</div>') +
+      '<div class="btn-row">' +
+        '<button class="btn dark" id="featFly" type="button">Terbang ke episenter di peta</button>' +
+        '<button class="btn" id="featDetail" type="button">Detail lengkap</button>' +
+        (a.url ? '<a class="btn" href="' + esc(a.url) + '" target="_blank" rel="noopener">Halaman USGS</a>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="recent-panel">' +
+      '<h3>Baru saja terjadi</h3>' +
+      '<p>5 gempa paling baru dari semua magnitudo — ketuk untuk terbang ke titiknya di peta.</p>' +
+      recent.map(function(g){
+        return '<button class="recent-row" data-fly-id="' + esc(g.id) + '">' +
+          '<span class="list-mag" style="background:' + magColor(g.mag) + ';width:44px;height:44px"><b style="font-size:14px">' + esc(fmtMag(g.mag)) + '</b><small>MAG</small></span>' +
+          '<span class="list-main"><b>' + esc(g.place) + '</b><span>' + esc(fmtJam(g.time)) + ' · ' + esc(fmtRelatif(g.time)) + ' · ' + esc(Number(g.depthKm).toFixed(0)) + ' km</span></span>' +
+        '</button>';
+      }).join("") +
+    '</div>';
+  document.getElementById("featFly").addEventListener("click", function(){ flyToQuake(a); });
+  document.getElementById("featDetail").addEventListener("click", function(){ openDetail(a); });
+  Array.prototype.forEach.call(el.querySelectorAll("[data-fly-id]"), function(btn){
+    btn.addEventListener("click", function(){
+      var g = findQuake(btn.getAttribute("data-fly-id"));
+      flyToQuake(g);
+    });
+  });
+}
+function findQuake(id){
+  if (!state.data) return null;
+  for (var i = 0; i < state.data.list.length; i++) if (state.data.list[i].id === id) return state.data.list[i];
+  return null;
+}
+function renderStats(){
+  var d = state.data;
+  var strongest = d.list.slice().sort(function(x,y){ return (y.mag||-99)-(x.mag||-99); })[0];
+  var feltCount = d.list.filter(function(g){ return g.tags.dirasakan; }).length;
+  var indoCount = d.list.filter(function(g){ return g.tags.indonesia; }).length;
+  document.getElementById("statsRow").innerHTML =
+    '<div class="stat-card"><b>' + d.list.length + ' gempa</b><span>Tercatat USGS di seluruh dunia dalam 24 jam terakhir (semua magnitudo)</span></div>' +
+    '<div class="stat-card"><b>' + d.big.length + ' gempa</b><span>Magnitudo 4,5+ dalam 24 jam terakhir (feed 4.5_day)</span></div>' +
+    '<div class="stat-card"><b><em>' + (strongest ? esc(fmtMag(strongest.mag)) : "—") + '</em></b><span>Terkuat 24 jam — ' + esc(strongest ? strongest.place + ", " + fmtTanggal(strongest.time) : "") + '</span></div>' +
+    '<div class="stat-card"><b>' + indoCount + ' gempa</b><span>Berada di wilayah Indonesia pada daftar 24 jam ini</span></div>';
+  document.getElementById("sideStrongest").textContent = strongest ? magLabel(strongest.mag) : "—";
+  document.getElementById("sideCountBig").textContent = d.big.length;
+  document.getElementById("sideCountFelt").textContent = feltCount;
+  document.getElementById("sideCountAll").textContent = d.list.length;
+  document.getElementById("sideCountIndo").textContent = indoCount;
+}
+function cardHTML(g, idx){
+  var c = magColor(g.mag);
+  var magN = g.mag == null ? 3 : g.mag;
+  var r1 = 46 + magN*9, r2 = r1 + 30 + magN*5;
+  var badge = g.tags.terbaru ? '<span class="badge-mag">TERBARU</span>'
+    : (g.mag != null && g.mag >= 4.5 ? '<span class="badge-mag">' + esc(magLabel(g.mag)) + '</span>'
+    : (g.tags.dirasakan ? '<span class="badge-felt">DIRASAKAN</span>' : ''));
+  return '<button class="card" data-fly-id="' + esc(g.id) + '" aria-label="Terbang ke episenter gempa ' + esc(g.place) + ' di peta">' +
+    '<span class="thumb">' + badge +
+      '<span class="rings"><span class="ring" style="width:' + r2 + 'px;height:' + r2 + 'px"></span><span class="ring" style="width:' + r1 + 'px;height:' + r1 + 'px"></span></span>' +
+      '<span class="core" style="background:' + c + '"><b>' + esc(fmtMag(g.mag)) + '</b><small>MAGNITUDO</small></span>' +
+      waveSVG(idx + 3, (g.mag != null && g.mag >= 5) ? "#FF5252" : "#9E9E9E") +
+      '<span class="coords">' + g.lat.toFixed(2) + ', ' + g.lon.toFixed(2) + '</span>' +
+      '<span class="badge-depth">' + esc(Number(g.depthKm).toFixed(0)) + ' km</span>' +
+    '</span>' +
+    '<span class="card-meta"><span class="avatar" style="background:' + c + '">' + esc(fmtMag(g.mag)) + '</span>' +
+      '<span class="card-text"><span class="card-title">' + esc(g.place) + '</span>' +
+      '<span class="card-sub">USGS<span class="dot"></span>' + esc(fmtTanggal(g.time)) + ', ' + esc(fmtJam(g.time)) + ' (' + esc(fmtRelatif(g.time)) + ')<br />' +
+      'Kedalaman ' + esc(Number(g.depthKm).toFixed(1)) + ' km<span class="dot"></span>' + esc(fmtCoord(g.lat, g.lon)) +
+      (g.felt ? '<br />Dirasakan: ' + g.felt + ' laporan warga' : '') +
+      (g.tsunami ? '<br />Flag tsunami USGS: ada' : '') +
+      '<br /><span class="card-fly">Ketuk untuk terbang ke episenter di peta</span></span></span>' +
+    '</span></button>';
+}
+function renderGrid(){
+  var items = filtered();
+  document.getElementById("gridTitle").textContent = state.query ? ('Hasil untuk “' + state.query + '”') : (VIEW_TITLES[state.view] || "Semua gempa");
+  document.getElementById("gridCount").textContent = items.length + " gempa ditampilkan · titik di peta mengikuti daftar ini";
+  document.getElementById("grid").innerHTML = items.map(cardHTML).join("");
+  document.getElementById("emptyState").hidden = items.length > 0;
+  document.getElementById("listWrap").innerHTML = items.map(function(g){
+    return '<button class="list-row" data-fly-id="' + esc(g.id) + '">' +
+      '<span class="list-mag" style="background:' + magColor(g.mag) + '"><b>' + esc(fmtMag(g.mag)) + '</b><small>MAG</small></span>' +
+      '<span class="list-main"><b>' + esc(g.place) + '</b><span>' + esc(fmtTanggal(g.time)) + ' • ' + esc(fmtJam(g.time)) + (g.felt ? ' • Dirasakan: ' + g.felt + ' laporan' : '') + '</span></span>' +
+      '<span class="list-side"><span class="mono">' + g.lat.toFixed(2) + ', ' + g.lon.toFixed(2) + '</span>' + esc(Number(g.depthKm).toFixed(0)) + ' km</span></button>';
+  }).join("");
+  Array.prototype.forEach.call(document.querySelectorAll("#grid [data-fly-id], #listWrap [data-fly-id]"), function(elm){
+    elm.addEventListener("click", function(){ flyToQuake(findQuake(elm.getAttribute("data-fly-id"))); });
+  });
+  renderMarkers(items);
+}
+function renderAll(){ renderFeatured(); renderStats(); renderGrid(); }
+
+function openDetail(g){
+  if (!g) return;
+  document.getElementById("modalTitle").textContent = g.place;
+  document.getElementById("modalSub").textContent = "USGS • " + fmtTanggalJam(g.time) + " • " + fmtRelatif(g.time);
+  var tags = [];
+  if (g.tags.terbaru) tags.push("Gempa terbaru");
+  if (g.tags.besar45) tags.push("Daftar M 4,5+");
+  if (g.tags.dirasakan) tags.push("Dirasakan warga");
+  if (g.tags.indonesia) tags.push("Wilayah Indonesia");
+  document.getElementById("modalBody").innerHTML =
+    '<div class="mag-hero"><div class="mag-big" style="background:' + magColor(g.mag) + '"><b>' + esc(fmtMag(g.mag)) + '</b><small>MAGNITUDO</small></div>' +
+    '<p><b>' + esc(tags.join(" · ") || "Catatan gempa USGS") + '</b>' + (g.tsunami ? 'USGS menandai gempa ini dengan flag tsunami — cek peringatan resmi otoritas setempat / BMKG untuk Indonesia.' : 'USGS tidak menandai gempa ini berpotensi tsunami.') + '</p></div>' +
+    '<div class="spec-grid">' +
+      '<div class="spec"><small>Waktu (WIB)</small><strong>' + esc(fmtTanggalJam(g.time)) + '</strong></div>' +
+      '<div class="spec"><small>Waktu (UTC)</small><strong class="mono" style="font-size:13px">' + esc(fmtUTC(g.time)) + '</strong></div>' +
+      '<div class="spec"><small>Magnitudo</small><strong>' + esc(fmtMag(g.mag)) + (g.magType ? ' (' + esc(g.magType.toUpperCase()) + ')' : '') + '</strong></div>' +
+      '<div class="spec"><small>Kedalaman</small><strong>' + esc(Number(g.depthKm).toFixed(1)) + ' km</strong></div>' +
+      '<div class="spec"><small>Koordinat</small><strong class="mono">' + g.lat.toFixed(4) + ', ' + g.lon.toFixed(4) + '</strong></div>' +
+      '<div class="spec"><small>Posisi</small><strong>' + esc(fmtCoord(g.lat, g.lon)) + '</strong></div>' +
+      (g.felt ? '<div class="spec"><small>Dirasakan</small><strong>' + g.felt + ' laporan' + (g.cdi ? ' · CDI ' + g.cdi : '') + (g.mmi ? ' · MMI ' + g.mmi : '') + '</strong></div>' : '') +
+      (g.sig != null ? '<div class="spec"><small>Skor signifikansi USGS</small><strong>' + g.sig + '</strong></div>' : '') +
+      (g.status ? '<div class="spec"><small>Status tinjauan</small><strong>' + esc(g.status) + '</strong></div>' : '') +
+      '<div class="spec"><small>ID kejadian USGS</small><strong class="mono" style="font-size:12.5px">' + esc(g.id) + '</strong></div>' +
+    '</div>' +
+    '<div class="btn-row">' +
+      '<button class="btn dark" id="modalFly" type="button">Terbang ke episenter di peta</button>' +
+      (g.url ? '<a class="btn" href="' + esc(g.url) + '" target="_blank" rel="noopener">Halaman USGS</a>' : '') +
+      '<button class="btn" id="modalCopy" type="button">Salin info gempa</button>' +
+    '</div>' +
+    '<p style="color:var(--text-2);font-size:12px;margin:16px 0 0">Sumber: USGS (earthquake.usgs.gov). Waktu asli USGS adalah UTC; tampilan WIB dikonversi otomatis.</p>';
+  document.getElementById("modalBack").classList.add("open");
+  document.getElementById("modalFly").addEventListener("click", function(){ closeDetail(); flyToQuake(g); });
+  document.getElementById("modalCopy").addEventListener("click", function(){
+    copyText("Gempa " + magLabel(g.mag) + " — " + g.place + " | " + fmtTanggalJam(g.time) + " | Kedalaman " + Number(g.depthKm).toFixed(1) + " km | Koordinat " + g.lat.toFixed(3) + ", " + g.lon.toFixed(3) + (g.felt ? " | Dirasakan: " + g.felt + " laporan" : "") + " | Sumber: USGS");
+  });
+}
+function closeDetail(){ document.getElementById("modalBack").classList.remove("open"); }
+
+/* Popup Leaflet: tombol "Detail lengkap" di dalamnya */
+document.addEventListener("click", function(e){
+  var t = e.target;
+  while (t && t !== document) {
+    if (t.getAttribute && t.getAttribute("data-detail-id")) {
+      var g = findQuake(t.getAttribute("data-detail-id"));
+      if (g) openDetail(g);
+      return;
+    }
+    t = t.parentNode;
+  }
+});
+
+var toastTimer = null;
+function toast(msg){
+  var t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(function(){ t.classList.remove("show"); }, 2600);
+}
+function copyText(txt){
+  function done(){ toast("Info gempa tersalin — siap dibagikan."); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(txt).then(done, function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta = document.createElement("textarea"); ta.value = txt; ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); done(); } catch(e){ toast("Gagal menyalin — salin manual dari detail gempa."); }
+    document.body.removeChild(ta);
+  }
+}
+function updateLivePill(mode, title){
+  var pill = document.getElementById("livePill");
+  var txt = document.getElementById("livePillText");
+  pill.classList.remove("is-live","is-snapshot","is-loading");
+  if (mode === "live") { pill.classList.add("is-live"); txt.textContent = "● LIVE"; }
+  else if (mode === "snapshot") { pill.classList.add("is-snapshot"); txt.textContent = "SNAPSHOT"; }
+  else { pill.classList.add("is-loading"); txt.textContent = "MEMUAT"; }
+  pill.title = title || "";
+  var autoLabel = document.getElementById("autoStatusLabel");
+  if (autoLabel) {
+    autoLabel.textContent = mode === "live" ? "● LIVE — data langsung dari USGS" : (mode === "snapshot" ? "SNAPSHOT — menampilkan data cadangan USGS " + FETCHED_LABEL : "Memuat data dari USGS…");
+  }
+}
+function setStatus(live, label){
+  state.live = live;
+  document.getElementById("statusDot").className = "status-dot" + (live ? "" : " stale");
+  document.getElementById("statusText").textContent = label;
+  updateLivePill(live ? "live" : "snapshot", label);
+}
+function setLoadingStatus(label){
+  document.getElementById("statusDot").className = "status-dot stale";
+  document.getElementById("statusText").textContent = label;
+  updateLivePill("loading", label);
+}
+function formatClock(d){
+  var hh = String(d.getHours()).padStart(2,"0"), mm = String(d.getMinutes()).padStart(2,"0"), ss = String(d.getSeconds()).padStart(2,"0");
+  return hh + ":" + mm + ":" + ss;
+}
+function updateCountdownUI(){
+  var remainMs = state.nextRefreshAt ? (state.nextRefreshAt - Date.now()) : AUTO_REFRESH_MS;
+  if (remainMs < 0) remainMs = 0;
+  var remainSec = Math.ceil(remainMs / 1000);
+  var t1 = document.getElementById("countdownText");
+  var t2 = document.getElementById("countdownText2");
+  if (t1) t1.textContent = state.fetching ? "…" : (remainSec + " dtk");
+  if (t2) t2.textContent = state.fetching ? "sedang memperbarui…" : (remainSec + " dtk lagi");
+  var fill = document.getElementById("countdownFill");
+  if (fill) fill.style.width = ((remainMs / AUTO_REFRESH_MS) * 100).toFixed(1) + "%";
+  var autoEl = document.getElementById("statusAuto");
+  if (autoEl) autoEl.textContent = document.hidden ? "Auto-refresh: aktif · tiap 60 detik (jeda saat tab tidak aktif)" : "Auto-refresh: aktif · tiap 60 detik · berikutnya " + remainSec + " dtk lagi";
+}
+function scheduleNextRefresh(){
+  if (state.autoTimer) clearTimeout(state.autoTimer);
+  state.nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+  updateCountdownUI();
+  state.autoTimer = setTimeout(function(){
+    if (document.hidden) { scheduleNextRefresh(); return; }
+    refreshLive(false);
+  }, AUTO_REFRESH_MS);
+}
+function fetchJSON(url){
+  var bust = url + (url.indexOf("?") === -1 ? "?" : "&") + "_=" + Date.now();
+  return fetch(bust, { cache: "no-store" }).then(function(r){ if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); });
+}
+function refreshLive(manual){
+  if (state.fetching) return Promise.resolve();
+  state.fetching = true;
+  updateCountdownUI();
+  var btn = document.getElementById("refreshBtn");
+  btn.classList.add("spinning"); btn.disabled = true;
+  if (!state.live) setLoadingStatus(manual ? "Memperbarui data dari USGS…" : "Mengambil data live dari USGS…");
+  return Promise.all([fetchJSON(FEEDS.all), fetchJSON(FEEDS.big)])
+    .then(function(res){
+      var prevFeaturedKey = state.data && state.data.featured ? (state.data.featured.id + "|" + state.data.featured.time) : "";
+      state.data = normalizeFeed(res[0], res[1]);
+      state.lastLiveAt = new Date();
+      renderAll();
+      var clock = formatClock(state.lastLiveAt);
+      setStatus(true, "LIVE — data langsung dari USGS, diperbarui " + clock + " WIB · auto-refresh 1 menit");
+      document.getElementById("statusClock").textContent = "Terakhir diperbarui: hari ini " + clock + " WIB";
+      var lastLbl = document.getElementById("lastUpdatedLabel");
+      if (lastLbl) lastLbl.textContent = "Terakhir diperbarui: " + clock + " WIB (LIVE)";
+      var newFeaturedKey = state.data.featured ? (state.data.featured.id + "|" + state.data.featured.time) : "";
+      if (manual) toast("Data LIVE dari USGS sudah dimuat — " + clock + " WIB.");
+      else if (prevFeaturedKey && newFeaturedKey && prevFeaturedKey !== newFeaturedKey) toast("Gempa signifikan terbaru berubah — peta & data sudah diperbarui (" + clock + " WIB).");
+    })
+    .catch(function(){
+      if (state.lastLiveAt) {
+        setStatus(true, "LIVE — refresh terakhir gagal, data live " + formatClock(state.lastLiveAt) + " WIB tetap ditampilkan. Coba lagi otomatis 1 menit lagi.");
+      } else {
+        setStatus(false, "SNAPSHOT — data cadangan USGS " + FETCHED_LABEL + ". Koneksi ke USGS belum berhasil; auto-refresh tetap jalan tiap 1 menit.");
+        var lastLbl2 = document.getElementById("lastUpdatedLabel");
+        if (lastLbl2) lastLbl2.textContent = "Terakhir diperbarui: snapshot " + FETCHED_LABEL;
+      }
+      if (manual) toast("Belum bisa menjangkau server USGS — data terakhir tetap ditampilkan.");
+    })
+    .finally(function(){
+      state.fetching = false;
+      btn.classList.remove("spinning"); btn.disabled = false;
+      scheduleNextRefresh();
+    });
+}
+
+/* ===== Init: peta + render snapshot dulu, lalu coba live + auto-refresh 1 menit ===== */
+initMap();
+state.data = normalizeSnapshot(SNAPSHOT_FEED);
+renderAll();
+document.getElementById("footSnapshot").textContent = FETCHED_LABEL;
+setStatus(false, "SNAPSHOT — data cadangan USGS " + FETCHED_LABEL + " · sedang mencoba mengambil data live…");
+document.getElementById("statusClock").textContent = "Snapshot: " + FETCHED_LABEL;
+var initLastLbl = document.getElementById("lastUpdatedLabel");
+if (initLastLbl) initLastLbl.textContent = "Terakhir diperbarui: snapshot " + FETCHED_LABEL;
+if (mapReady) {
+  var indoPts = state.data.list.filter(function(g){ return g.tags.indonesia; });
+  if (indoPts.length) map.setView([indoPts[0].lat, indoPts[0].lon], 4);
+}
+state.nextRefreshAt = Date.now() + AUTO_REFRESH_MS;
+state.tickTimer = setInterval(updateCountdownUI, 1000);
+updateCountdownUI();
+document.addEventListener("visibilitychange", function(){
+  updateCountdownUI();
+  if (!document.hidden && state.nextRefreshAt && Date.now() >= state.nextRefreshAt && !state.fetching) {
+    refreshLive(false);
+  }
+});
+window.addEventListener("online", function(){ if (!state.fetching) refreshLive(false); });
+refreshLive(false);
+
+/* ===== Interaksi ===== */
+document.getElementById("refreshBtn").addEventListener("click", function(){
+  if (state.autoTimer) clearTimeout(state.autoTimer);
+  refreshLive(true);
+});
+document.getElementById("mapFitBtn").addEventListener("click", function(){ fitMapToItems(filtered()); });
+document.getElementById("mapIndoBtn").addEventListener("click", function(){
+  if (!mapReady) return;
+  map.flyTo([-2.5, 118], 5, { duration: REDUCED_MOTION ? 0 : 1.2 });
+  document.getElementById("mapSection").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "start" });
+});
+document.getElementById("mapLatestBtn").addEventListener("click", function(){ flyToQuake(state.data.featured); });
+
+document.querySelectorAll(".nav-item").forEach(function(btn){
+  btn.addEventListener("click", function(){
+    document.querySelectorAll(".nav-item").forEach(function(b){ b.classList.remove("active"); });
+    btn.classList.add("active");
+    state.view = btn.getAttribute("data-view");
+    state.filter = "semua";
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.toggle("selected", c.getAttribute("data-filter") === "semua"); });
+    renderGrid();
+    document.body.classList.remove("drawer-open");
+    document.getElementById("scrim").classList.remove("show");
+    if (state.view === "terbaru") document.getElementById("featuredSection").scrollIntoView({ behavior:"smooth", block:"start" });
+  });
+});
+document.querySelectorAll(".chip").forEach(function(chip){
+  chip.addEventListener("click", function(){
+    document.querySelectorAll(".chip").forEach(function(c){ c.classList.remove("selected"); });
+    chip.classList.add("selected");
+    state.filter = chip.getAttribute("data-filter");
+    renderGrid();
+  });
+});
+document.getElementById("searchForm").addEventListener("submit", function(e){
+  e.preventDefault();
+  state.query = document.getElementById("searchInput").value;
+  renderGrid();
+});
+document.getElementById("searchInput").addEventListener("input", function(e){
+  state.query = e.target.value; renderGrid();
+});
+document.getElementById("brandHome").addEventListener("click", function(e){
+  e.preventDefault(); state.view = "semua"; state.filter = "semua"; state.query = "";
+  document.getElementById("searchInput").value = "";
+  document.querySelectorAll(".nav-item").forEach(function(b){ b.classList.toggle("active", b.getAttribute("data-view") === "semua"); });
+  document.querySelectorAll(".chip").forEach(function(c){ c.classList.toggle("selected", c.getAttribute("data-filter") === "semua"); });
+  renderGrid(); window.scrollTo({ top:0, behavior:"smooth" });
+});
+var menuBtn = document.getElementById("menuBtn");
+menuBtn.addEventListener("click", function(){
+  if (window.innerWidth <= 860) {
+    var open = document.body.classList.toggle("drawer-open");
+    document.getElementById("scrim").classList.toggle("show", open);
+  } else {
+    document.body.classList.toggle("rail");
+  }
+});
+document.getElementById("scrim").addEventListener("click", function(){
+  document.body.classList.remove("drawer-open"); this.classList.remove("show");
+});
+document.getElementById("searchToggle").addEventListener("click", function(){
+  document.getElementById("searchCenter").classList.toggle("mobile-open");
+  document.getElementById("searchInput").focus();
+});
+document.getElementById("modalClose").addEventListener("click", closeDetail);
+document.getElementById("modalBack").addEventListener("click", function(e){ if (e.target === this) closeDetail(); });
+document.addEventListener("keydown", function(e){ if (e.key === "Escape") { closeDetail(); document.body.classList.remove("drawer-open"); document.getElementById("scrim").classList.remove("show"); } });
+window.addEventListener("scroll", function(){
+  document.getElementById("topbar").classList.toggle("scrolled", window.scrollY > 4);
+}, { passive:true });
+</script>
+</body>
+</html>
